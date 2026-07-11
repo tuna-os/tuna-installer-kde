@@ -1,4 +1,5 @@
 #include "recipe.h"
+#include <QJsonArray>
 #include <QJsonDocument>
 
 QJsonObject Recipe::toJson() const
@@ -9,10 +10,22 @@ QJsonObject Recipe::toJson() const
     obj["btrfsSubvolumes"] = btrfsSubvolumes;
     QJsonObject enc;
     enc["type"] = encryption.type;
-    enc["passphrase"] = encryption.passphrase;
+    if (!encryption.passphrase.isEmpty())
+        enc["passphrase"] = encryption.passphrase;
     obj["encryption"] = enc;
-    obj["image"] = image;
-    obj["targetImgref"] = targetImgref;
+    if (!liveMode || !image.isEmpty())
+        obj["image"] = image;
+    if (!targetImgref.isEmpty())
+        obj["targetImgref"] = targetImgref;
+    if (!bootloader.isEmpty())
+        obj["bootloader"] = bootloader;
+    if (composeFsBackend)
+        obj["composeFsBackend"] = true;
+    if (!flatpaks.isEmpty())
+        obj["flatpaks"] = QJsonArray::fromStringList(flatpaks);
+    if (!additionalImageStores.isEmpty())
+        obj["additionalImageStores"] = QJsonArray::fromStringList(additionalImageStores);
+    obj["distroID"] = distroID;
     obj["selinuxDisabled"] = selinuxDisabled;
     obj["hostname"] = hostname;
     return obj;
@@ -43,11 +56,16 @@ QString Recipe::validationError() const
 {
     if (disk.isEmpty())
         return QStringLiteral("No disk selected");
-    if (image.isEmpty())
+    if (image.isEmpty() && !liveMode)
         return QStringLiteral("No OS image specified");
     if (hostname.isEmpty())
         return QStringLiteral("Hostname is required");
-    if (encryption.type == "luks" && encryption.passphrase.isEmpty())
-        return QStringLiteral("LUKS passphrase is required");
+    static const QStringList kEncTypes = {
+        QStringLiteral("none"), QStringLiteral("luks-passphrase"),
+        QStringLiteral("tpm2-luks"), QStringLiteral("tpm2-luks-passphrase")};
+    if (!kEncTypes.contains(encryption.type))
+        return QStringLiteral("Unknown encryption type: %1").arg(encryption.type);
+    if (encryption.type.endsWith(QLatin1String("passphrase")) && encryption.passphrase.isEmpty())
+        return QStringLiteral("Encryption passphrase is required");
     return {};
 }

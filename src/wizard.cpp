@@ -1,4 +1,5 @@
 #include "wizard.h"
+#include "offline.h"
 #include "pages/welcome.h"
 #include "pages/diskselection.h"
 #include "pages/confirm.h"
@@ -62,6 +63,8 @@ void Wizard::connectSignals()
 
     // Progress → Done
     connect(m_progress, &ProgressPage::finished, this, [this](int code, const QString &output) {
+        if (!m_recipePath.isEmpty())
+            QFile::remove(m_recipePath); // recipe may hold secrets
         m_done->setResult(code, output);
         navigateTo("done");
     });
@@ -87,18 +90,30 @@ void Wizard::navigateTo(const QString &page)
 
 void Wizard::startInstallation()
 {
-    // Write recipe to temp file
-    QString recipePath = QDir::tempPath() + "/fisherman-recipe.json";
-    QFile f(recipePath);
-    if (!f.open(QIODevice::WriteOnly)) {
+    // Offline install support (spec §4): live-ISO mode allows an empty image;
+    // embedded stores are always passed — fisherman ignores unhelpful ones.
+    if (m_recipe.image.isEmpty() && !offline::liveIsoImage().isEmpty())
+        m_recipe.liveMode = true;
+    if (m_recipe.additionalImageStores.isEmpty())
+        m_recipe.additionalImageStores = offline::offlineStores();
+
+    // The recipe can hold a LUKS passphrase — write it 0600 under
+    // XDG_RUNTIME_DIR, never a world-readable temp path.
+    QString base = qEnvironmentVariable("XDG_RUNTIME_DIR");
+    if (base.isEmpty())
+        base = QDir::tempPath();
+    QDir().mkpath(base + QStringLiteral("/tuna-installer"));
+    m_recipePath = base + QStringLiteral("/tuna-installer/recipe.json");
+    QFile f(m_recipePath);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
         m_progress->onError("Failed to write recipe file");
         return;
     }
+    f.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner);
     f.write(QJsonDocument(m_recipe.toJson()).toJson(QJsonDocument::Indented));
     f.close();
-    qDebug() << "Recipe written to" << recipePath;
 
-    m_progress->start(recipePath);
+    m_progress->start(m_recipePath);
     navigateTo("progress");
 }
 

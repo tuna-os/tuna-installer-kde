@@ -1,4 +1,5 @@
 #include "progress.h"
+#include "../offline.h"
 
 #include <QVBoxLayout>
 #include <QLabel>
@@ -25,9 +26,12 @@ void ProgressPage::start(const QString &recipePath)
     m_buffer.clear();
     appendLine(QStringLiteral("Starting installation...\n"));
 
+    // pkexec /app/bin/fisherman in Flatpak, sudo /usr/local/bin/fisherman otherwise.
+    QStringList cmd = offline::fishermanCommand();
+    cmd << recipePath;
     m_process = new QProcess(this);
-    m_process->setProgram(QStringLiteral("fisherman"));
-    m_process->setArguments({recipePath});
+    m_process->setProgram(cmd.takeFirst());
+    m_process->setArguments(cmd);
 
     connect(m_process, &QProcess::readyReadStandardOutput, this, [this]() {
         m_buffer += QString::fromUtf8(m_process->readAllStandardOutput());

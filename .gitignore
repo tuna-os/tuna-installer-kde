@@ -7,3 +7,4 @@ qrc_*
 .idea/
 .vscode/
 CMakeUserPresets.json
+.flatpak-builder/

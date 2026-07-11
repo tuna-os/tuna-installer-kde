@@ -28,6 +28,7 @@ public:
 private:
     QStackedWidget *m_stack;
     Recipe m_recipe;
+    QString m_recipePath;
 
     WelcomePage *m_welcome;
     DiskSelectionPage *m_disk;

@@ -33,11 +33,20 @@ The installer writes a JSON recipe that fisherman consumes:
   "disk": "/dev/nvme0n1",
   "filesystem": "btrfs",
   "btrfsSubvolumes": true,
-  "encryption": {"type": "luks", "passphrase": "…"},
+  "encryption": {"type": "luks-passphrase", "passphrase": "…"},
   "image": "ghcr.io/tuna-os/albacore:gnome",
+  "additionalImageStores": ["/usr/share/tuna-installer/oci-store"],
+  "distroID": "tunaos",
   "selinuxDisabled": true,
   "hostname": "tunaos"
 }
+```
+
+Encryption types: `none`, `luks-passphrase`, `tpm2-luks`, `tpm2-luks-passphrase`.
+On a live ISO, `image` may be omitted — bootc installs the running container
+(offline, no download). See `../INSTALLER-FRONTENDS.md` for the full contract.
+
+```json
 ```
 
 ## License

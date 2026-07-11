@@ -13,6 +13,7 @@ set(SOURCES
     src/main.cpp
     src/wizard.cpp
     src/recipe.cpp
+    src/offline.cpp
     src/pages/welcome.cpp
     src/pages/diskselection.cpp
     src/pages/confirm.cpp
@@ -23,6 +24,7 @@ set(SOURCES
 set(HEADERS
     src/wizard.h
     src/recipe.h
+    src/offline.h
     src/pages/welcome.h
     src/pages/diskselection.h
     src/pages/confirm.h
