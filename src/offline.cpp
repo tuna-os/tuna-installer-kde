@@ -17,8 +17,12 @@ bool inFlatpak()
 
 QStringList fishermanCommand()
 {
+    // Flatpak runtimes ship no pkexec; escalate host-side. The live ISO
+    // symlinks the flatpak-bundled fisherman to /usr/local/bin and installs
+    // the polkit policy for it (tunaOS customize-live.sh).
     if (inFlatpak())
-        return {QStringLiteral("pkexec"), QStringLiteral("/app/bin/fisherman")};
+        return {QStringLiteral("flatpak-spawn"), QStringLiteral("--host"),
+                QStringLiteral("pkexec"), QStringLiteral("/usr/local/bin/fisherman")};
     return {QStringLiteral("sudo"), QStringLiteral("/usr/local/bin/fisherman")};
 }
 
