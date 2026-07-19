@@ -6,6 +6,8 @@
 #include <QFormLayout>
 #include <QPushButton>
 #include <QHBoxLayout>
+#include <QShortcut>
+#include <QKeySequence>
 
 ConfirmPage::ConfirmPage(Wizard *wizard, QWidget *parent)
     : QWidget(parent), m_wizard(wizard)
@@ -43,6 +45,23 @@ ConfirmPage::ConfirmPage(Wizard *wizard, QWidget *parent)
     auto *btnLayout = new QHBoxLayout;
     auto *btnBack = new QPushButton(QStringLiteral("Back"));
     auto *btnInstall = new QPushButton(QStringLiteral("Install"));
+    // Enter/Return must fire this page's primary action.
+    //
+    // setDefault()/setAutoDefault() do NOT work here: Qt only gives default
+    // buttons their Enter behaviour inside a QDialog, and these pages are
+    // plain QWidgets. Verified — with setDefault alone a synthetic Return
+    // still does not emit clicked(). Binding the keys explicitly does.
+    //
+    // Without this the wizard cannot be advanced by keyboard at all: a
+    // focused QPushButton takes Space, never Enter.
+    for (auto key : {Qt::Key_Return, Qt::Key_Enter}) {
+        auto *sc = new QShortcut(QKeySequence(key), this);
+        connect(sc, &QShortcut::activated, btnInstall, [btnInstall]() {
+            if (btnInstall->isEnabled()) {
+                btnInstall->animateClick();
+            }
+        });
+    }
     btnInstall->setStyleSheet("QPushButton { background-color: #3584e4; color: white; padding: 8px 24px; }");
     btnLayout->addWidget(btnBack);
     btnLayout->addStretch();
