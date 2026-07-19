@@ -16,6 +16,7 @@ set(SOURCES
     src/offline.cpp
     src/pages/welcome.cpp
     src/pages/diskselection.cpp
+    src/pages/encryption.cpp
     src/pages/confirm.cpp
     src/pages/progress.cpp
     src/pages/done.cpp
