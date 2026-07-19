@@ -8,6 +8,7 @@
 
 class WelcomePage;
 class DiskSelectionPage;
+class EncryptionPage;
 class ConfirmPage;
 class ProgressPage;
 class DonePage;
@@ -32,6 +33,7 @@ private:
 
     WelcomePage *m_welcome;
     DiskSelectionPage *m_disk;
+    EncryptionPage *m_encryption;
     ConfirmPage *m_confirm;
     ProgressPage *m_progress;
     DonePage *m_done;

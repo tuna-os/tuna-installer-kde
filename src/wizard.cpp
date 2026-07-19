@@ -2,6 +2,7 @@
 #include "offline.h"
 #include "pages/welcome.h"
 #include "pages/diskselection.h"
+#include "pages/encryption.h"
 #include "pages/confirm.h"
 #include "pages/progress.h"
 #include "pages/done.h"
@@ -28,12 +29,14 @@ void Wizard::setupUi()
 
     m_welcome  = new WelcomePage(this);
     m_disk     = new DiskSelectionPage(this);
+    m_encryption = new EncryptionPage(this);
     m_confirm  = new ConfirmPage(this);
     m_progress = new ProgressPage(this);
     m_done     = new DonePage(this);
 
     m_stack->addWidget(m_welcome);
     m_stack->addWidget(m_disk);
+    m_stack->addWidget(m_encryption);
     m_stack->addWidget(m_confirm);
     m_stack->addWidget(m_progress);
     m_stack->addWidget(m_done);
@@ -48,12 +51,21 @@ void Wizard::connectSignals()
 
     // Disk selection → Confirm
     connect(m_disk, &DiskSelectionPage::nextRequested, this, [this]() {
+        navigateTo("encryption");
+    });
+
+    // Encryption → Confirm. The page has already validated the passphrase, so
+    // the recipe can be written straight through.
+    connect(m_encryption, &EncryptionPage::nextRequested, this, [this]() {
         navigateTo("confirm");
+    });
+    connect(m_encryption, &EncryptionPage::backRequested, this, [this]() {
+        navigateTo("disk");
     });
 
     // Confirm → Back to disk
     connect(m_confirm, &ConfirmPage::backRequested, this, [this]() {
-        navigateTo("disk");
+        navigateTo("encryption");
     });
 
     // Confirm → Start install
@@ -82,6 +94,8 @@ void Wizard::navigateTo(const QString &page)
         w->prepare();
     else if (auto *d = qobject_cast<DiskSelectionPage *>(child))
         d->prepare();
+    else if (auto *e = qobject_cast<EncryptionPage *>(child))
+        e->prepare();
     else if (auto *c = qobject_cast<ConfirmPage *>(child))
         c->prepare();
 
