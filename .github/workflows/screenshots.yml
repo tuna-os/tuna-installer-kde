@@ -1,0 +1,63 @@
+name: screenshots
+
+# Renders every wizard page from the REAL Wizard and pages (only main.cpp is
+# swapped) and publishes the walkthrough.
+#
+# This job is also the only thing that starts the app. The first time it ran it
+# segfaulted before showing a window — EncryptionPage's constructor called
+# setChecked() before the passphrase widgets existed, so the toggled handler
+# dereferenced uninitialised pointers. Nothing else in CI launched the binary,
+# so nothing else could have caught it.
+
+on:
+  push:
+    branches: [main]
+    paths: ["src/**", "tests/**", "CMakeLists.txt", ".github/workflows/screenshots.yml"]
+  pull_request:
+    paths: ["src/**", "tests/**", "CMakeLists.txt", ".github/workflows/screenshots.yml"]
+  workflow_dispatch:
+
+jobs:
+  capture:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install Qt6 + build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq cmake g++ qt6-base-dev imagemagick
+
+      - name: build capture harness
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_CAPTURE=ON
+          cmake --build build --target tuna-installer-capture -j"$(nproc)"
+
+      # Qt's offscreen platform plugin: no X server, no compositor, no GPU.
+      - name: capture every screen
+        env:
+          XDG_RUNTIME_DIR: /tmp/runtime
+        run: |
+          mkdir -p "$XDG_RUNTIME_DIR" && chmod 700 "$XDG_RUNTIME_DIR"
+          ./build/tuna-installer-capture docs/screenshots
+          convert -delay 240 -loop 0 docs/screenshots/0*.png docs/screenshots/walkthrough.gif
+
+      - uses: actions/upload-artifact@v4
+        # always(): the capture fails when a screen renders wrong, which is
+        # exactly when the picture is needed.
+        if: always()
+        with:
+          name: gui-screenshots
+          path: docs/screenshots/
+
+      - name: commit refreshed screenshots
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/screenshots
+          if git diff --cached --quiet; then echo "no changes"; exit 0; fi
+          git commit -m "docs: refresh GUI screenshots [skip ci]"
+          git push
