@@ -369,12 +369,13 @@ int main(int argc, char *argv[])
     // exercises the file-reading path rather than the env override.
     out << "product name from os-release: " << product::resolve() << "\n";
 
-    // The committed walkthrough images are generic documentation, not a
-    // Skipjack ISO's screenshots, so they are rendered with the neutral
-    // fallback name unless the caller asks for something else. Setting it here
-    // rather than in the workflow keeps a local run and a CI run identical.
-    if (qEnvironmentVariableIsEmpty("TUNA_INSTALLER_PRODUCT_NAME"))
-        qputenv("TUNA_INSTALLER_PRODUCT_NAME", "TunaOS");
+    // NOTE: the harness deliberately does NOT force a product name of its own.
+    // The first version defaulted it to "TunaOS" here, which silently overrode
+    // the branding-check run in the workflow: that run planted a Skipjack
+    // os-release, this binary printed "Skipjack" on the line above, and then
+    // rendered six screens saying "TunaOS" anyway. A verification step that
+    // cannot fail is worse than none. The workflow sets the neutral name for
+    // the documentation capture and leaves it unset for the check.
 
     const QString outDir = argc > 1 ? QString::fromLocal8Bit(argv[1])
                                     : u"docs/screenshots"_s;
