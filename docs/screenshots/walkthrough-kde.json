@@ -76,7 +76,7 @@
         "disk": {
             "matched_keywords": [
                 "choose the disk",
-                "where tunaos will be installed"
+                "be installed"
             ],
             "on_pages": [
                 "02-disk"
@@ -108,7 +108,6 @@
         },
         "install": {
             "matched_keywords": [
-                "installing tunaos",
                 "partitioning",
                 "installing image"
             ],
@@ -130,8 +129,7 @@
         },
         "welcome": {
             "matched_keywords": [
-                "welcome",
-                "install tunaos"
+                "welcome"
             ],
             "on_pages": [
                 "01-welcome"
