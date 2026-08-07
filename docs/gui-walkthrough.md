@@ -33,16 +33,33 @@ while its "the PNGs exist and are non-empty" assertion passed. So
 did not really render:
 
 - **distinct colours** — a screen that never painted collapses to a handful.
-- **largest flat colour** — the fraction of sampled pixels that are all one
-  colour. A blank window is ~100%.
 - **ink** — the fraction of sampled pixels far enough (Manhattan distance > 40)
   from the image's own dominant colour to be drawn content. Measuring against
   the image's own background rather than a fixed luma keeps this correct under
   a dark colour scheme.
+- **row and column spread** — the fraction of sampled rows, and of sampled
+  columns, that contain any ink. This is what actually discriminates. Density
+  alone does not: the welcome and finished steps are hero pages — one icon, a
+  heading, a line of prose — and legitimately score around 1% ink, while a form
+  step with a FormCard behind it scores 30%. A blank screen scores zero on all
+  four.
 
-The thresholds live at the top of `tests/capture.cpp` and are calibrated from
-measured output; every run prints the numbers, so a drift is visible in the log
-before it is a mystery.
+Measured on the six real screens at 1000×700, and the thresholds sit below
+these with margin (see the table at the top of `tests/capture.cpp`):
+
+| step | colours | ink | rows | cols |
+|---|---|---|---|---|
+| 01-welcome | 237 | 1.24% | 22.6% | 51.2% |
+| 02-disk | 315 | 22.03% | 41.2% | 53.9% |
+| 03-encryption | 367 | 26.89% | 53.8% | 53.9% |
+| 04-confirm | 288 | 30.20% | 56.8% | 53.9% |
+| 05-progress | 334 | 15.77% | 100.0% | 100.0% |
+| 06-done | 181 | 0.79% | 15.6% | 47.0% |
+
+Every run prints these, so a drift is visible in the log before it is a
+mystery. The capture also clears the output directory before rendering: a run
+that dies on the first screen must not leave the previous run's images there
+for the artifact upload to publish as its own.
 
 The screenshot artifact is uploaded with `if: always()` — it is needed
 precisely when the capture fails.
