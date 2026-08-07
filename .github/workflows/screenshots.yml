@@ -48,7 +48,16 @@ jobs:
             kf6-breeze-icons dejavu-sans-fonts dejavu-sans-mono-fonts \
             ImageMagick
           echo "--- versions ---"
-          rpm -q qt6-qtbase kf6-kirigami kf6-kirigami-addons kf6-qqc2-desktop-style kf6-breeze-icons
+          # Fatal on purpose. The first run asked for "breeze-icons", which is
+          # not a binary package on Fedora 42 — dnf resolved it through a
+          # Provides and installed something, and this check is what caught
+          # that the icon theme the UI actually needs was not there. The KF6
+          # theme is kf6-breeze-icons.
+          rpm -q qt6-qtbase kf6-kirigami kf6-kirigami-addons \
+                 kf6-qqc2-desktop-style kf6-breeze-icons
+          echo "--- icon theme ---"
+          test -f /usr/share/icons/breeze/index.theme
+          ls /usr/share/icons
 
       - uses: actions/checkout@v7
 

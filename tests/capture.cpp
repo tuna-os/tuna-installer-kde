@@ -23,6 +23,7 @@
 #include <QFile>
 #include <QImage>
 #include <QMap>
+#include <QIcon>
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
 #include <QQuickWindow>
@@ -141,8 +142,19 @@ int main(int argc, char *argv[])
     if (qEnvironmentVariableIsEmpty("QT_QUICK_CONTROLS_STYLE"))
         QQuickStyle::setStyle(u"org.kde.desktop"_s);
 
+    // On a real Plasma session the platform theme supplies this. Offscreen
+    // there is no platform theme, so every Kirigami.Icon and every button icon
+    // would come back null and the screenshots would document a UI full of
+    // holes.
+    if (QIcon::themeName().isEmpty() || QIcon::themeName() == u"hicolor"_s)
+        QIcon::setThemeName(u"breeze"_s);
+    QIcon::setFallbackThemeName(u"breeze"_s);
+
     QTextStream out(stdout);
-    out << "style: " << QQuickStyle::name() << "\n";
+    out << "style: " << QQuickStyle::name()
+        << "  icon theme: " << QIcon::themeName()
+        << "  breeze present: " << (QIcon::hasThemeIcon(u"drive-harddisk-symbolic"_s) ? "yes" : "no")
+        << "\n";
 
     const QString outDir = argc > 1 ? QString::fromLocal8Bit(argv[1])
                                     : u"docs/screenshots"_s;
