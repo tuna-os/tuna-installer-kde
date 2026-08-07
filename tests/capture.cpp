@@ -26,8 +26,10 @@
 #include <QMetaMethod>
 #include <QIcon>
 #include <QQmlApplicationEngine>
+#include <QQuickItem>
 #include <QQuickStyle>
 #include <QQuickWindow>
+#include <QRect>
 #include <QTextStream>
 #include <QTimer>
 
@@ -37,11 +39,40 @@ using namespace Qt::StringLiterals;
 
 namespace {
 
-// Pixel-audit thresholds. Calibrated against measured CI output, not guessed —
-// every run prints the numbers these were derived from.
-constexpr int MIN_COLOURS = 200;   // distinct colours in a real screen
-constexpr double MAX_FLAT = 0.97;  // fraction of samples allowed to be one colour
-constexpr double MIN_INK = 0.01;   // fraction of samples differing from the background
+// Pixel-audit thresholds, applied to the step content rect, not the whole
+// window. Calibrated against measured CI output, not guessed; every run prints
+// the numbers these were derived from.
+//
+// Density on its own cannot be thresholded here, which is what the first
+// version of this got wrong. The welcome and done steps are hero pages: one
+// icon, a heading, a line of prose, centred on a flat page background with no
+// FormCard behind it, while the form steps have a card that paints a
+// background over most of the rect. Measured on the six real screens (run
+// 31135359770, 1000x700):
+//
+//   step           colours   ink%   rows%   cols%
+//   01-welcome         233   1.32    23.2    54.2
+//   02-disk            322  22.34    41.8    53.9
+//   03-encryption      344  26.86    54.6    53.9
+//   04-confirm         305  30.44    57.7    53.9
+//   05-progress        326  10.98   100.0   100.0
+//   06-done            161   0.60    15.5    40.7
+//
+// Ink spans a factor of fifty, so any ink floor loose enough to admit the done
+// step is far too loose to catch a blank form step. What IS uniform is how far
+// the drawn content is SPREAD: every real screen marks at least 15% of the
+// rect's rows and 40% of its columns, and a step whose module drew nothing
+// marks 0.0% of both. So the spread is the load-bearing check and ink is a
+// weak second opinion.
+//
+// There is deliberately no max-flat threshold any more. The done step is 99.3%
+// one colour by design, so the only passing value would be ~0.995, which a
+// font change could cross on a screen that renders perfectly well: a threshold
+// with no margin is a flake, not a check.
+constexpr int MIN_COLOURS = 60;         // vs 161 measured on the sparsest screen
+constexpr double MIN_INK_ROWS = 0.08;   // vs 0.155
+constexpr double MIN_INK_COLS = 0.20;   // vs 0.407
+constexpr double MIN_INK = 0.0025;      // vs 0.0060
 
 void settle(int ms)
 {
@@ -53,22 +84,30 @@ void settle(int ms)
 struct Finding {
     QString name;
     int colours = 0;
-    double flat = 0.0;
-    double ink = 0.0;
+    double ink = 0.0;      // fraction of samples differing from the background
+    double inkRows = 0.0;  // fraction of rows containing any drawn content
+    double inkCols = 0.0;  // fraction of columns containing any drawn content
 };
 
 // Read the pixels back. A capture that only checks its PNGs exist will publish
 // blank screens: the files are present, non-empty, and empty. That exact check
 // passed in a sibling repo while shipping a blank page.
 //
-// "ink" is measured against the image's own dominant colour rather than a fixed
+// Only `rect` is examined, which is the step content area rather than the whole
+// window; see stepsContainer in Wizard.qml. The heading and the button row
+// draw identically on all six steps, so including them lets a step whose module
+// rendered nothing coast through on the chrome's ink.
+//
+// "ink" is measured against the region's own dominant colour rather than a fixed
 // luma, because a Plasma dark colour scheme inverts the sense of "dark pixel".
-Finding audit(const QImage &image, const QString &name)
+Finding audit(const QImage &image, const QRect &rect, const QString &name)
 {
+    constexpr int STRIDE = 3;
+
     QMap<QRgb, int> counts;
     int samples = 0;
-    for (int y = 0; y < image.height(); y += 3) {
-        for (int x = 0; x < image.width(); x += 3) {
+    for (int y = rect.top(); y <= rect.bottom(); y += STRIDE) {
+        for (int x = rect.left(); x <= rect.right(); x += STRIDE) {
             counts[image.pixel(x, y) & 0x00FFFFFF] += 1;
             samples += 1;
         }
@@ -84,21 +123,69 @@ Finding audit(const QImage &image, const QString &name)
     }
 
     // Anything far enough from the dominant colour counts as drawn content.
+    const auto isInk = [&image, background](int x, int y) {
+        const QRgb c = image.pixel(x, y) & 0x00FFFFFF;
+        return qAbs(qRed(c) - qRed(background))
+             + qAbs(qGreen(c) - qGreen(background))
+             + qAbs(qBlue(c) - qBlue(background)) > 40;
+    };
+
     int ink = 0;
-    for (auto it = counts.constBegin(); it != counts.constEnd(); ++it) {
-        const int distance = qAbs(qRed(it.key()) - qRed(background))
-                           + qAbs(qGreen(it.key()) - qGreen(background))
-                           + qAbs(qBlue(it.key()) - qBlue(background));
-        if (distance > 40)
-            ink += it.value();
+    int inkRows = 0;
+    int rows = 0;
+    for (int y = rect.top(); y <= rect.bottom(); y += STRIDE) {
+        rows += 1;
+        bool any = false;
+        for (int x = rect.left(); x <= rect.right(); x += STRIDE) {
+            if (isInk(x, y)) {
+                ink += 1;
+                any = true;
+            }
+        }
+        if (any)
+            inkRows += 1;
+    }
+
+    int inkCols = 0;
+    int cols = 0;
+    for (int x = rect.left(); x <= rect.right(); x += STRIDE) {
+        cols += 1;
+        for (int y = rect.top(); y <= rect.bottom(); y += STRIDE) {
+            if (isInk(x, y)) {
+                inkCols += 1;
+                break;
+            }
+        }
     }
 
     Finding f;
     f.name = name;
     f.colours = counts.size();
-    f.flat = samples ? double(largest) / samples : 1.0;
     f.ink = samples ? double(ink) / samples : 0.0;
+    f.inkRows = rows ? double(inkRows) / rows : 0.0;
+    f.inkCols = cols ? double(inkCols) / cols : 0.0;
     return f;
+}
+
+// Where the current step draws, in image coordinates.
+//
+// Returned empty if the item is missing, and the caller treats that as fatal:
+// silently falling back to the whole window would quietly restore the blind
+// spot this exists to remove.
+QRect stepContentRect(QQuickWindow *window, const QImage &image)
+{
+    auto *item = window->findChild<QQuickItem *>(u"stepsContainer"_s);
+    if (!item || item->width() <= 0 || item->height() <= 0 || window->width() <= 0)
+        return QRect();
+
+    // grabWindow() hands back a device-pixel image; item geometry is in layout
+    // pixels. Equal at the offscreen platform's ratio of 1, but not a safe
+    // assumption to bake in.
+    const qreal scale = qreal(image.width()) / window->width();
+    const QPointF topLeft = item->mapToScene(QPointF(0, 0)) * scale;
+    const QRectF scaled(topLeft, QSizeF(item->width() * scale, item->height() * scale));
+
+    return scaled.toRect().intersected(QRect(QPoint(0, 0), image.size()));
 }
 
 // The progress and done steps are genuinely empty until an install has run — no
@@ -150,10 +237,17 @@ int main(int argc, char *argv[])
         QIcon::setThemeName(u"breeze"_s);
     QIcon::setFallbackThemeName(u"breeze"_s);
 
+    // Probe a name Breeze actually defines. The first version asked for
+    // "drive-harddisk-symbolic" and reported "no" on a run whose icons all drew
+    // fine: Breeze ships no -symbolic alias for its device icons, and
+    // Kirigami.Icon resolves those names by stripping the suffix. So the probe
+    // was answering "does Breeze define this alias" (no) while claiming to
+    // answer "is Breeze installed" (yes). A diagnostic that sends you after
+    // the wrong thing is worse than none.
     QTextStream out(stdout);
     out << "style: " << QQuickStyle::name()
         << "  icon theme: " << QIcon::themeName()
-        << "  breeze present: " << (QIcon::hasThemeIcon(u"drive-harddisk-symbolic"_s) ? "yes" : "no")
+        << "  breeze present: " << (QIcon::hasThemeIcon(u"drive-harddisk"_s) ? "yes" : "no")
         << "\n";
 
     const QString outDir = argc > 1 ? QString::fromLocal8Bit(argv[1])
@@ -272,20 +366,28 @@ int main(int argc, char *argv[])
             out << "FAIL: could not write " << path << "\n";
             return 1;
         }
-        findings.append(audit(image, step.second));
+        const QRect content = stepContentRect(window, image);
+        if (content.isEmpty()) {
+            out << "FAIL: could not locate the step content area for " << step.second << "\n";
+            return 1;
+        }
+        findings.append(audit(image, content, step.second));
     }
 
     QStringList failures;
     for (const auto &f : findings) {
-        out << QStringLiteral("  %1  colours %2  largest-flat %3%  ink %4%\n")
+        out << QStringLiteral("  %1  colours %2  ink %3%  rows %4%  cols %5%\n")
                    .arg(f.name, -14)
                    .arg(f.colours, 6)
-                   .arg(f.flat * 100, 5, 'f', 1)
-                   .arg(f.ink * 100, 5, 'f', 2);
+                   .arg(f.ink * 100, 6, 'f', 2)
+                   .arg(f.inkRows * 100, 5, 'f', 1)
+                   .arg(f.inkCols * 100, 5, 'f', 1);
         if (f.colours < MIN_COLOURS)
             failures << QStringLiteral("%1: %2 distinct colours — did not render").arg(f.name).arg(f.colours);
-        if (f.flat > MAX_FLAT)
-            failures << QStringLiteral("%1: %2% one flat colour — blank screen").arg(f.name).arg(f.flat * 100, 0, 'f', 1);
+        if (f.inkRows < MIN_INK_ROWS)
+            failures << QStringLiteral("%1: content on only %2% of rows (blank screen)").arg(f.name).arg(f.inkRows * 100, 0, 'f', 1);
+        if (f.inkCols < MIN_INK_COLS)
+            failures << QStringLiteral("%1: content on only %2% of columns (blank screen)").arg(f.name).arg(f.inkCols * 100, 0, 'f', 1);
         if (f.ink < MIN_INK)
             failures << QStringLiteral("%1: %2% ink — nothing drawn").arg(f.name).arg(f.ink * 100, 0, 'f', 2);
     }

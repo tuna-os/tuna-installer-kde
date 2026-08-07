@@ -224,6 +224,12 @@ Kirigami.Page {
         Item {
             id: stepsContainer
 
+            // Looked up by the screenshot harness, which audits the pixels of
+            // the step area specifically: the heading and the button row draw
+            // on every step, so a whole-window audit would still find ink on a
+            // step whose module rendered nothing at all.
+            objectName: "stepsContainer"
+
             clip: true
 
             Layout.fillWidth: true
