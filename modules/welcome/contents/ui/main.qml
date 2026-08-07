@@ -13,19 +13,17 @@ TunaComponents.SetupModule {
 
     nextEnabled: true
 
-    contentItem: ScrollView {
-        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
-        contentWidth: -1
+    // A plain Item, not a ScrollView. These two steps are short enough never to
+    // scroll, and inside a ScrollView the content item collapses to its
+    // implicit height — which is why the first CI render came out hard against
+    // the top of the page with the whole lower half empty. The Control sizes
+    // this to the full step rect, so centring on it actually centres.
+    contentItem: Item {
 
         ColumnLayout {
-            anchors.fill: parent
+            anchors.centerIn: parent
+            width: Math.min(root.cardWidth, parent.width)
             spacing: Kirigami.Units.largeSpacing
-
-            // Vertical centring without anchors.centerIn: inside a ScrollView
-            // the content item's size is not reliable to anchor against.
-            Item {
-                Layout.fillHeight: true
-            }
 
             Kirigami.Icon {
                 source: "drive-harddisk-symbolic"
@@ -62,9 +60,6 @@ TunaComponents.SetupModule {
                 Layout.fillWidth: true
             }
 
-            Item {
-                Layout.fillHeight: true
-            }
         }
     }
 }
