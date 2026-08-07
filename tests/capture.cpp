@@ -482,7 +482,6 @@ int main(int argc, char *argv[])
                       QStringLiteral("tests/capture.cpp (Kirigami/QML, offscreen)"),
                       transitions, out);
     }
-    }
 
     if (!failures.isEmpty()) {
         for (const auto &m : failures)
