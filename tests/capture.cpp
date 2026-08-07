@@ -29,7 +29,6 @@
 #include <QQuickWindow>
 #include <QTextStream>
 #include <QTimer>
-#include <QVariant>
 
 #include "installercontroller.h"
 
@@ -218,7 +217,13 @@ int main(int argc, char *argv[])
         out << "  -> " << step.second << "\n";
         out.flush();
 
-        if (!QMetaObject::invokeMethod(window, "goToStep", Q_ARG(QVariant, step.first))) {
+        // Q_ARG(int), not Q_ARG(QVariant): Main.qml declares
+        // goToStep(index: int), and an annotated QML parameter is exposed to
+        // the meta-object system with that type, so the metamethod really is
+        // goToStep(int). QVariant is only correct for an *unannotated* QML
+        // parameter, and invokeMethod matches the signature exactly: with the
+        // wrong one it returns false and the capture aborts on step 0.
+        if (!QMetaObject::invokeMethod(window, "goToStep", Q_ARG(int, step.first))) {
             out << "FAIL: could not invoke goToStep(" << step.first << ")\n";
             return 1;
         }
