@@ -4,63 +4,63 @@
     "failures": 0,
     "flavor": "kde",
     "frames": 6,
-    "harness": "tests/capture.cpp (Qt6 Widgets, offscreen)",
-    "notes": "GPU-less capture: pages are driven programmatically and text is read from the widget tree, so this reports SCREEN PARITY only. It does not measure keyboard navigation, compositor rendering, or that the frontend launches under its real desktop — those stay the VM walkthrough's job.",
+    "harness": "tests/capture.cpp (Kirigami/QML, offscreen)",
+    "notes": "GPU-less capture: pages are driven programmatically and text is read from the item tree, so this reports SCREEN PARITY only. It does not measure keyboard navigation, compositor rendering, or that the frontend launches under its real desktop — those stay the VM walkthrough's job.",
     "ocr": false,
     "pages": [
         {
-            "colours": 604,
-            "flat": 0.9776651305683564,
-            "ink": 0.009078341013824884,
+            "colours": 234,
+            "flat": 0.9860379743026509,
+            "ink": 0.01263804050191075,
             "name": "01-welcome",
             "png": "docs/screenshots/01-welcome.png",
             "rendered": true,
-            "stddev": 0.070281453700702
+            "stddev": 0.0614022319384125
         },
         {
-            "colours": 473,
-            "flat": 0.5660983102918586,
-            "ink": 0.026313364055299538,
+            "colours": 431,
+            "flat": 0.777856347606295,
+            "ink": 0.21999217645111788,
             "name": "02-disk",
             "png": "docs/screenshots/02-disk.png",
             "rendered": true,
-            "stddev": 0.09396580142897545
+            "stddev": 0.04819552882403602
         },
         {
-            "colours": 650,
-            "flat": 0.9811059907834101,
-            "ink": 0.0066359447004608295,
+            "colours": 367,
+            "flat": 0.7289591670929498,
+            "ink": 0.26891944753708663,
             "name": "03-encryption",
             "png": "docs/screenshots/03-encryption.png",
             "rendered": true,
-            "stddev": 0.05473164896736741
+            "stddev": 0.0534943114072631
         },
         {
-            "colours": 554,
-            "flat": 0.9791705069124425,
-            "ink": 0.007219662058371736,
+            "colours": 285,
+            "flat": 0.6940089669906419,
+            "ink": 0.30203412270935515,
             "name": "04-confirm",
             "png": "docs/screenshots/04-confirm.png",
             "rendered": true,
-            "stddev": 0.06273228428626501
+            "stddev": 0.052060549018297014
         },
         {
-            "colours": 766,
-            "flat": 0.8840860215053763,
-            "ink": 0.009738863287250384,
+            "colours": 330,
+            "flat": 0.8453817003673811,
+            "ink": 0.1532876276432642,
             "name": "05-progress",
             "png": "docs/screenshots/05-progress.png",
             "rendered": true,
-            "stddev": 0.08218605317532612
+            "stddev": 0.07161323560953715
         },
         {
-            "colours": 550,
-            "flat": 0.9774961597542243,
-            "ink": 0.008571428571428572,
+            "colours": 163,
+            "flat": 0.9933800740228087,
+            "ink": 0.00586766166160142,
             "name": "06-done",
             "png": "docs/screenshots/06-done.png",
             "rendered": true,
-            "stddev": 0.07190142158799864
+            "stddev": 0.05066362741346266
         }
     ],
     "rendered_frames": 6,
@@ -68,14 +68,13 @@
         "disk": true,
         "done": true,
         "encryption": true,
-        "install": false,
+        "install": true,
         "summary": true,
         "welcome": true
     },
     "screens_detail": {
         "disk": {
             "matched_keywords": [
-                "select target disk",
                 "choose the disk",
                 "where tunaos will be installed"
             ],
@@ -88,8 +87,8 @@
         "done": {
             "matched_keywords": [
                 "complete",
-                "restart",
-                "success"
+                "finished",
+                "restart"
             ],
             "on_pages": [
                 "06-done"
@@ -109,16 +108,19 @@
         },
         "install": {
             "matched_keywords": [
+                "installing tunaos",
+                "partitioning",
+                "installing image"
             ],
             "on_pages": [
+                "05-progress"
             ],
-            "reached": false,
+            "reached": true,
             "required": false
         },
         "summary": {
             "matched_keywords": [
-                "confirm installation",
-                "review your choices"
+                "confirm installation"
             ],
             "on_pages": [
                 "04-confirm"
@@ -128,7 +130,8 @@
         },
         "welcome": {
             "matched_keywords": [
-                "get started"
+                "welcome",
+                "install tunaos"
             ],
             "on_pages": [
                 "01-welcome"
@@ -139,13 +142,13 @@
     },
     "source": "offscreen-capture",
     "strict": true,
-    "text_source": "widget-tree",
+    "text_source": "qml-item-tree",
     "transition_pixels": [
-        254576,
-        253498,
-        14654,
-        534523,
-        531828
+        138736,
+        85343,
+        49028,
+        404674,
+        541123
     ],
     "visual_states": 6
 }
