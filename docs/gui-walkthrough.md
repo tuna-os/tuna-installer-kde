@@ -44,17 +44,17 @@ did not really render:
   step with a FormCard behind it scores 30%. A blank screen scores zero on all
   four.
 
-Measured on the six real screens at 1000×700, and the thresholds sit below
-these with margin (see the table at the top of `tests/capture.cpp`):
+Measured on the six real screens at 1000×700 (CI run 31136541525), and the
+thresholds sit below these with margin (see the table at the top of `tests/capture.cpp`):
 
 | step | colours | ink | rows | cols |
 |---|---|---|---|---|
-| 01-welcome | 237 | 1.24% | 22.6% | 51.2% |
+| 01-welcome | 234 | 1.26% | 25.1% | 44.9% |
 | 02-disk | 315 | 22.03% | 41.2% | 53.9% |
 | 03-encryption | 367 | 26.89% | 53.8% | 53.9% |
 | 04-confirm | 288 | 30.20% | 56.8% | 53.9% |
 | 05-progress | 334 | 15.77% | 100.0% | 100.0% |
-| 06-done | 181 | 0.79% | 15.6% | 47.0% |
+| 06-done | 163 | 0.59% | 17.6% | 38.0% |
 
 Every run prints these, so a drift is visible in the log before it is a
 mystery. The capture also clears the output directory before rendering: a run
