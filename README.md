@@ -1,5 +1,14 @@
 # TunaOS KDE Installer — Qt6 Widgets frontend for fisherman
 
+<p align="center">
+  <img src="docs/screenshots/walkthrough.gif" alt="The TunaOS KDE installer, screen by screen" width="640">
+</p>
+
+<p align="center">
+  <em>Rendered in CI from the real wizard — see the <a href="docs/gui-walkthrough.md">walkthrough</a>.</em>
+</p>
+
+
 **Thin Qt6/C++ wizard** that drives the [fisherman](https://github.com/tuna-os/fisherman) bootc install backend.
 
 ## Workflow

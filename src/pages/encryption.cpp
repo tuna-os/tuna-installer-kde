@@ -68,8 +68,8 @@ EncryptionPage::EncryptionPage(Wizard *wizard, QWidget *parent)
         connect(radio, &QRadioButton::toggled, this, [this]() { syncPassphraseVisibility(); });
         m_choices.append(radio);
     }
-    if (!m_choices.isEmpty())
-        m_choices.first()->setChecked(true);
+    // The default selection is applied AFTER the passphrase widgets exist —
+    // see the note below the block.
 
     // Passphrase entry, shown only for the options that need one.
     m_passphraseBox = new QWidget(this);
@@ -90,6 +90,16 @@ EncryptionPage::EncryptionPage(Wizard *wizard, QWidget *parent)
     pbLayout->addWidget(m_passphraseConfirm);
     pbLayout->addWidget(m_passphraseError);
     layout->addWidget(m_passphraseBox);
+
+    // Selecting the default here, not where the radios are built. setChecked()
+    // emits toggled(), which runs syncPassphraseVisibility(), which touches
+    // m_passphraseBox and m_passphrase. Doing it before those pointers were
+    // assigned dereferenced uninitialised memory and the installer crashed on
+    // launch every time — SIGSEGV inside syncPassphraseVisibility, from the
+    // EncryptionPage constructor. The window never appeared.
+    if (!m_choices.isEmpty())
+        m_choices.first()->setChecked(true);
+    syncPassphraseVisibility();
 
     layout->addStretch();
 
