@@ -1,48 +1,76 @@
 name: screenshots
 
-# Renders every wizard page from the REAL Wizard and pages (only main.cpp is
-# swapped) and publishes the walkthrough.
+# Builds the Kirigami/QML installer and renders every wizard step from the REAL
+# QML module (only main.cpp is swapped for tests/capture.cpp), then publishes
+# the walkthrough.
 #
-# This job is also the only thing that starts the app. The first time it ran it
-# segfaulted before showing a window — EncryptionPage's constructor called
-# setChecked() before the passphrase widgets existed, so the toggled handler
-# dereferenced uninitialised pointers. Nothing else in CI launched the binary,
-# so nothing else could have caught it.
+# This job runs in a Fedora container because the UI is Plasma 6 / KF6:
+# Kirigami, Kirigami Addons (FormCard) and the org.kde.desktop Controls style
+# are resolved at runtime from the QML import path, and Ubuntu runners have no
+# KF6 packages. It is also the only thing in CI that actually starts the app —
+# the previous Widgets version segfaulted on launch once, and nothing but this
+# job could have caught it.
 
 on:
   push:
     branches: [main]
-    paths: ["src/**", "tests/**", "CMakeLists.txt", ".github/workflows/screenshots.yml"]
+    paths:
+      - "src/**"
+      - "modules/**"
+      - "tests/**"
+      - "CMakeLists.txt"
+      - ".github/workflows/screenshots.yml"
   pull_request:
-    paths: ["src/**", "tests/**", "CMakeLists.txt", ".github/workflows/screenshots.yml"]
+    paths:
+      - "src/**"
+      - "modules/**"
+      - "tests/**"
+      - "CMakeLists.txt"
+      - ".github/workflows/screenshots.yml"
   workflow_dispatch:
 
 jobs:
   capture:
     runs-on: ubuntu-24.04
+    container: fedora:42
     permissions:
       contents: write
     steps:
+      # Runs before checkout: the fedora:42 image has no git, so
+      # actions/checkout would fall back to the slower REST tarball path.
+      - name: install Qt6 + KF6 runtime
+        run: |
+          dnf -y install --setopt=install_weak_deps=False \
+            git tar findutils which \
+            cmake ninja-build gcc-c++ \
+            qt6-qtbase-devel qt6-qtdeclarative-devel qt6-qtsvg \
+            kf6-kirigami kf6-kirigami-addons kf6-qqc2-desktop-style \
+            kf6-breeze-icons dejavu-sans-fonts dejavu-sans-mono-fonts \
+            ImageMagick
+          echo "--- versions ---"
+          rpm -q qt6-qtbase kf6-kirigami kf6-kirigami-addons kf6-qqc2-desktop-style kf6-breeze-icons
+
       - uses: actions/checkout@v7
 
-      - name: install Qt6 + build tools
+      - name: build installer + capture harness
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq cmake g++ qt6-base-dev imagemagick
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_CAPTURE=ON
+          cmake --build build -j"$(nproc)"
 
-      - name: build capture harness
-        run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_CAPTURE=ON
-          cmake --build build --target tuna-installer-capture -j"$(nproc)"
-
-      # Qt's offscreen platform plugin: no X server, no compositor, no GPU.
+      # Qt's offscreen platform plugin and the software scenegraph: no X
+      # server, no compositor, no GPU.
       - name: capture every screen
         env:
           XDG_RUNTIME_DIR: /tmp/runtime
+          QT_QPA_PLATFORM: offscreen
+          QT_QUICK_BACKEND: software
         run: |
           mkdir -p "$XDG_RUNTIME_DIR" && chmod 700 "$XDG_RUNTIME_DIR"
           ./build/tuna-installer-capture docs/screenshots
-          convert -delay 240 -loop 0 docs/screenshots/0*.png docs/screenshots/walkthrough.gif
+          rm -f docs/screenshots/.lsblk-fixture.json
+          if command -v magick >/dev/null; then IM=magick; else IM=convert; fi
+          $IM -delay 240 -loop 0 docs/screenshots/0*.png docs/screenshots/walkthrough.gif
+          ls -l docs/screenshots
 
       - uses: actions/upload-artifact@v4
         # always(): the capture fails when a screen renders wrong, which is
@@ -55,6 +83,7 @@ jobs:
       - name: commit refreshed screenshots
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs/screenshots

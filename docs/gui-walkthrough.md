@@ -1,62 +1,61 @@
-# The TunaOS KDE installer — a walkthrough
+# GUI walkthrough
 
-Every image here is rendered in CI from the real `Wizard` and its real pages by
-`tests/capture.cpp` — only `main.cpp` is swapped — so these document the shipped
-UI rather than a replica.
+Every image below is rendered in CI from the **real** QML — the same
+`src/qml/Wizard.qml` and the same six step modules under `modules/` that the
+shipped installer loads. Only `src/main.cpp` is swapped, for
+`tests/capture.cpp`. Nothing about the UI is mocked or redrawn.
 
-The capture uses Qt's **offscreen** platform plugin: no X server, no compositor
-and no GPU. Qt Widgets are raster-drawn, so unlike Qt Quick there is no GL
-context to arrange.
+The capture runs on the Qt `offscreen` platform plugin with the software
+scenegraph, inside a Fedora container that carries the KF6 runtime (Kirigami,
+Kirigami Addons, `org.kde.desktop` Qt Quick Controls style). See
+[`.github/workflows/screenshots.yml`](../.github/workflows/screenshots.yml).
 
-It is also safe by construction. `Wizard::navigateTo()` only switches the
-stacked widget and calls the page's `prepare()`; the install is a separate
-entry point (`startInstallation`) which the capture never calls. Worth stating,
-because the sibling XFCE installer *does* start an install from its page-enter
-hook — "drive the pages" is not automatically harmless across this family.
+<p align="center">
+  <img src="screenshots/walkthrough.gif" alt="The TunaOS KDE installer, step by step" width="720">
+</p>
 
----
+## The steps
 
-## 1. Welcome
-![Welcome](screenshots/01-welcome.png)
+| | |
+|---|---|
+| ![Welcome](screenshots/01-welcome.png) | **Welcome** — what the wizard is about to do. |
+| ![Target disk](screenshots/02-disk.png) | **Target disk** — `lsblk -J`, filtered to whole disks, one FormCard radio per device. Re-read every time the step becomes current, so hotplugged media appear. |
+| ![Disk encryption](screenshots/03-encryption.png) | **Disk encryption** — `none`, `luks-passphrase`, and (only when `/sys/class/tpm/tpm0` exists) `tpm2-luks` and `tpm2-luks-passphrase`. The passphrase fields appear only for the options that take one. |
+| ![Confirm](screenshots/04-confirm.png) | **Confirm** — the recipe as it will be written, and the only button in the app that starts an install. |
+| ![Installing](screenshots/05-progress.png) | **Installing** — live `fisherman` output. No Back, no Next: the wizard advances itself when the process exits. |
+| ![Finished](screenshots/06-done.png) | **Finished** — success or failure, with the exit code. |
 
-## 2. Choose a disk
-![Disk](screenshots/02-disk.png)
+## What the capture checks
 
-Populated from `lsblk`.
+Existence checks are not enough. A sibling repository published a blank page
+while its "the PNGs exist and are non-empty" assertion passed. So
+`tests/capture.cpp` reads its own pixels back and fails the build when a screen
+did not really render:
 
-## 3. Encryption
-![Encryption](screenshots/03-encryption.png)
+- **distinct colours** — a screen that never painted collapses to a handful.
+- **largest flat colour** — the fraction of sampled pixels that are all one
+  colour. A blank window is ~100%.
+- **ink** — the fraction of sampled pixels far enough (Manhattan distance > 40)
+  from the image's own dominant colour to be drawn content. Measuring against
+  the image's own background rather than a fixed luma keeps this correct under
+  a dark colour scheme.
 
-The passphrase fields appear only for the options that need one. Options are
-filtered by hardware — TPM choices are hidden where there is no TPM, which is
-why this render shows two rather than four.
+The thresholds live at the top of `tests/capture.cpp` and are calibrated from
+measured output; every run prints the numbers, so a drift is visible in the log
+before it is a mystery.
 
-## 4. Confirm
-![Confirm](screenshots/04-confirm.png)
+The screenshot artifact is uploaded with `if: always()` — it is needed
+precisely when the capture fails.
 
-The last screen before anything is written.
+## Why this cannot start an install
 
-## 5. Installing
-![Progress](screenshots/05-progress.png)
+The harness drives navigation through `Wizard.goToStep()`, which moves the
+visible step and calls the target module's `onPageActivated()`. The only
+`onPageActivated()` in the tree is the disk step's, and it re-reads `lsblk` and
+nothing else. `InstallerController.startInstall()` — the sole path to a
+privileged `fisherman` process — has exactly one caller, the Install button's
+`onClicked` in `Wizard.qml`, which the harness never presses.
 
-fisherman's output streams in as it arrives. The log shown here is fixture
-data — the widget is real.
-
-## 6. Done
-![Done](screenshots/06-done.png)
-
----
-
-## Regenerating these
-
-```sh
-sudo apt-get install -y cmake g++ qt6-base-dev imagemagick
-cmake -S . -B build -DBUILD_CAPTURE=ON
-cmake --build build --target tuna-installer-capture
-./build/tuna-installer-capture docs/screenshots
-```
-
-The harness reads its own output back and fails if a screen did not really
-render. That check exists because a rig which only asserts its PNGs *exist*
-will happily publish blank pages: the files are present, non-empty, and the
-pages are empty.
+Worth stating explicitly: the sibling XFCE installer *does* kick off an install
+from its page-enter hook, so "drive the steps" is not automatically harmless
+across this family of frontends.

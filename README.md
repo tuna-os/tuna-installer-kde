@@ -1,4 +1,4 @@
-# TunaOS KDE Installer — Qt6 Widgets frontend for fisherman
+# TunaOS KDE Installer — Kirigami/Plasma 6 frontend for fisherman
 
 <p align="center">
   <img src="docs/screenshots/walkthrough.gif" alt="The TunaOS KDE installer, screen by screen" width="640">
@@ -9,21 +9,34 @@
 </p>
 
 
-**Thin Qt6/C++ wizard** that drives the [fisherman](https://github.com/tuna-os/fisherman) bootc install backend.
+**Thin Qt 6 / Kirigami wizard** that drives the
+[fisherman](https://github.com/tuna-os/fisherman) bootc install backend.
+
+The UI is built the way KDE's own initial-setup wizard
+([KISS](https://github.com/KDE/kiss), landing in Plasma 6.5) is built: each step
+is a self-contained module at `modules/<name>/contents/ui/main.qml` whose root
+is a `SetupModule` exposing `nextEnabled` and `contentItem`, driven by
+`src/qml/Wizard.qml` with hand-rolled slide animations rather than a SwipeView.
+Kirigami, Kirigami Addons (`FormCard`) and `Kirigami.Units` throughout — no
+hardcoded pixel metrics, and no more forced Fusion style.
 
 ## Workflow
 
 1. **Welcome** — brief intro
-2. **Disk Selection** — `lsblk -J` lists available disks; user picks one
-3. **Confirm** — summary of choices (disk, encryption, hostname, image)
-4. **Install** — writes recipe JSON, runs `fisherman <recipe.json>`, streams output
-5. **Done** — success/failure with close button
+2. **Target Disk** — `lsblk -J` lists available disks; user picks one
+3. **Disk Encryption** — none / passphrase / TPM / TPM + passphrase
+4. **Confirm** — summary of choices (disk, filesystem, encryption, hostname, image)
+5. **Installing** — writes recipe JSON, runs `fisherman <recipe.json>`, streams output
+6. **Finished** — success/failure with close button
 
 ## Build
 
 ```bash
-# Dependencies (Fedora)
-sudo dnf install -y qt6-qtbase-devel cmake gcc-c++
+# Dependencies (Fedora). Kirigami and Kirigami Addons are QML-only: nothing
+# links against KF6, they are resolved at runtime from the QML import path.
+sudo dnf install -y cmake gcc-c++ ninja-build \
+    qt6-qtbase-devel qt6-qtdeclarative-devel \
+    kf6-kirigami kf6-kirigami-addons kf6-qqc2-desktop-style breeze-icons
 
 # Build
 cmake -B build -DCMAKE_BUILD_TYPE=Release
@@ -54,9 +67,6 @@ The installer writes a JSON recipe that fisherman consumes:
 Encryption types: `none`, `luks-passphrase`, `tpm2-luks`, `tpm2-luks-passphrase`.
 On a live ISO, `image` may be omitted — bootc installs the running container
 (offline, no download). See `../INSTALLER-FRONTENDS.md` for the full contract.
-
-```json
-```
 
 ## License
 
