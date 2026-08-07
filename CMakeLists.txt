@@ -37,6 +37,8 @@ set(BACKEND_SOURCES
     src/recipe.h
     src/offline.cpp
     src/offline.h
+    src/productname.cpp
+    src/productname.h
     src/diskmodel.cpp
     src/diskmodel.h
     src/installercontroller.cpp

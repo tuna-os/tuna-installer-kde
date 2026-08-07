@@ -32,7 +32,7 @@ TunaComponents.SetupModule {
                 // here credited a welcome screen off the confirm page in run
                 // 31143012730 — and would keep crediting one if the welcome
                 // step were ever removed. Same sentence, one word different.
-                text: "Selecting Install erases " + InstallerController.disk + " and writes TunaOS to it."
+                text: "Selecting Install erases " + InstallerController.disk + " and writes " + InstallerController.productName + " to it."
 
                 Layout.fillWidth: true
                 Layout.maximumWidth: root.cardWidth

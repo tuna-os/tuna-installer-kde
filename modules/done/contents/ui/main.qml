@@ -46,7 +46,7 @@ TunaComponents.SetupModule {
 
             Label {
                 text: InstallerController.succeeded
-                    ? "TunaOS has been installed. Remove the installation media and restart to boot into your new system."
+                    ? InstallerController.productName + " has been installed. Remove the installation media and restart to boot into your new system."
                     : "The installation did not finish. The log above has the details — exit code "
                       + InstallerController.exitCode + "."
                 horizontalAlignment: Text.AlignHCenter

@@ -86,6 +86,12 @@ jobs:
           XDG_RUNTIME_DIR: /tmp/runtime
           QT_QPA_PLATFORM: offscreen
           QT_QUICK_BACKEND: software
+          # These images are generic documentation, not a Skipjack ISO's
+          # screenshots, so they are rendered with the neutral fallback name.
+          # Without this they would carry the CI container's PRETTY_NAME —
+          # "Fedora Linux 45 (Container Image Prerelease)" — straight into the
+          # README, because the UI now honestly shows whatever os-release says.
+          TUNA_INSTALLER_PRODUCT_NAME: TunaOS
         run: |
           mkdir -p "$XDG_RUNTIME_DIR" && chmod 700 "$XDG_RUNTIME_DIR"
           ./build/tuna-installer-capture docs/screenshots
@@ -93,6 +99,40 @@ jobs:
           if command -v magick >/dev/null; then IM=magick; else IM=convert; fi
           $IM -delay 240 -loop 0 docs/screenshots/0*.png docs/screenshots/walkthrough.gif
           ls -l docs/screenshots
+
+      # Proves the branding actually resolves, rather than asserting it.
+      #
+      # The main capture above renders the documentation images with the
+      # neutral fallback name (see tests/capture.cpp), so those PNGs cannot
+      # tell "reads os-release" apart from "still hardcoded". This run does:
+      # it plants a variant os-release at the HOST path a flatpak sees,
+      # /run/host/etc/os-release, sets NO override (note the absence of
+      # TUNA_INSTALLER_PRODUCT_NAME below — an earlier version of this had the
+      # harness default it to "TunaOS" internally, which made the check pass
+      # while proving nothing), and renders into a scratch directory that is
+      # never committed. If the resulting screens say "Skipjack", the os-release
+      # lookup and the QML bindings both work.
+      - name: render a variant ISO's branding (verification only)
+        env:
+          XDG_RUNTIME_DIR: /tmp/runtime
+          QT_QPA_PLATFORM: offscreen
+          QT_QUICK_BACKEND: software
+        run: |
+          mkdir -p /run/host/etc
+          printf 'NAME="Skipjack"\nPRETTY_NAME="Skipjack"\nID=skipjack\n' \
+            > /run/host/etc/os-release
+          mkdir -p /tmp/branding-check
+          ./build/tuna-installer-capture /tmp/branding-check
+          rm -f /tmp/branding-check/.lsblk-fixture.json
+          # /etc/os-release must NOT be the answer: the host copy wins.
+          grep PRETTY_NAME /etc/os-release
+          ls -l /tmp/branding-check
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: branding-check
+          path: /tmp/branding-check/
 
       # Warns if the screen contract vendored into tests/parity_report.h has
       # fallen behind tunaOS's. Reporting parity against a spec nobody else
