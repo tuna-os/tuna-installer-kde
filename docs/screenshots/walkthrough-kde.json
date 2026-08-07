@@ -86,9 +86,10 @@
         },
         "done": {
             "matched_keywords": [
-                "complete",
-                "finished",
-                "restart"
+                "installation complete",
+                "has been installed",
+                "remove the installation media",
+                "restart to boot"
             ],
             "on_pages": [
                 "06-done"
