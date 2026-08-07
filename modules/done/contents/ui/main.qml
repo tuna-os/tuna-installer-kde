@@ -19,9 +19,14 @@ TunaComponents.SetupModule {
         contentWidth: -1
 
         ColumnLayout {
-            anchors.centerIn: parent
-            width: Math.min(root.cardWidth, parent.width)
+            anchors.fill: parent
             spacing: Kirigami.Units.largeSpacing
+
+            // Vertical centring without anchors.centerIn: inside a ScrollView
+            // the content item's size is not reliable to anchor against.
+            Item {
+                Layout.fillHeight: true
+            }
 
             Kirigami.Icon {
                 source: InstallerController.succeeded ? "checkmark" : "dialog-error"
@@ -50,6 +55,10 @@ TunaComponents.SetupModule {
                 wrapMode: Text.Wrap
 
                 Layout.fillWidth: true
+            }
+
+            Item {
+                Layout.fillHeight: true
             }
         }
     }

@@ -26,7 +26,7 @@ TunaComponents.SetupModule {
             Kirigami.InlineMessage {
                 type: Kirigami.MessageType.Warning
                 visible: true
-                position: Kirigami.InlineMessage.Position.Header
+                position: Kirigami.InlineMessage.Header
                 text: "Selecting Install erases " + InstallerController.disk + " and begins writing TunaOS."
 
                 Layout.fillWidth: true

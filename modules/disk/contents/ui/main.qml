@@ -39,7 +39,7 @@ TunaComponents.SetupModule {
             Kirigami.InlineMessage {
                 type: Kirigami.MessageType.Warning
                 visible: true
-                position: Kirigami.InlineMessage.Position.Header
+                position: Kirigami.InlineMessage.Header
                 text: "Everything on the selected disk will be erased."
 
                 Layout.fillWidth: true
