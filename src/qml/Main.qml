@@ -3,10 +3,12 @@
 import QtQuick
 import org.kde.kirigami as Kirigami
 
+import org.tunaos.installer
+
 Kirigami.AbstractApplicationWindow {
     id: root
 
-    title: "TunaOS Installer"
+    title: InstallerController.productName + " Installer"
 
     width: Kirigami.Units.gridUnit * 50
     height: Kirigami.Units.gridUnit * 36

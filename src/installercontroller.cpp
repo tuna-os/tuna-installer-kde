@@ -1,5 +1,6 @@
 #include "installercontroller.h"
 #include "offline.h"
+#include "productname.h"
 
 #include <QDir>
 #include <QFile>
@@ -10,6 +11,7 @@ InstallerController::InstallerController(QObject *parent)
     : QObject(parent)
 {
     m_hasTpm = QFileInfo::exists(QStringLiteral("/sys/class/tpm/tpm0"));
+    m_productName = product::resolve();
 }
 
 void InstallerController::setDisk(const QString &v)

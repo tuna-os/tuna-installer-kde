@@ -35,6 +35,7 @@
 #include <QVariant>
 
 #include "installercontroller.h"
+#include "productname.h"
 #include "parity_report.h"
 
 using namespace Qt::StringLiterals;
@@ -362,6 +363,19 @@ int main(int argc, char *argv[])
         << " — Kirigami.Icon has its own lookup and is unaffected)"
         << "\n";
 
+    // What os-release actually says on THIS machine, printed before the
+    // documentation override below is applied. In CI this is the Fedora
+    // container's own PRETTY_NAME, which is the only thing in the run that
+    // exercises the file-reading path rather than the env override.
+    out << "product name from os-release: " << product::resolve() << "\n";
+
+    // The committed walkthrough images are generic documentation, not a
+    // Skipjack ISO's screenshots, so they are rendered with the neutral
+    // fallback name unless the caller asks for something else. Setting it here
+    // rather than in the workflow keeps a local run and a CI run identical.
+    if (qEnvironmentVariableIsEmpty("TUNA_INSTALLER_PRODUCT_NAME"))
+        qputenv("TUNA_INSTALLER_PRODUCT_NAME", "TunaOS");
+
     const QString outDir = argc > 1 ? QString::fromLocal8Bit(argv[1])
                                     : u"docs/screenshots"_s;
     QDir().mkpath(outDir);
@@ -437,6 +451,7 @@ int main(int argc, char *argv[])
         out << "FAIL: InstallerController singleton unavailable\n";
         return 1;
     }
+    out << "product name rendered in these screens: " << controller->productName() << "\n";
     controller->setDisk(u"/dev/nvme0n1"_s);
     controller->setImage(u"ghcr.io/tuna-os/albacore:kde"_s);
     controller->setEncryptionType(u"luks-passphrase"_s);

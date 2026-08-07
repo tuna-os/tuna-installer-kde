@@ -6,6 +6,7 @@ import QtQuick.Layouts
 
 import org.kde.kirigami as Kirigami
 
+import org.tunaos.installer
 import org.tunaos.installer.components as TunaComponents
 
 TunaComponents.SetupModule {
@@ -35,7 +36,7 @@ TunaComponents.SetupModule {
             }
 
             Kirigami.Heading {
-                text: "Install TunaOS"
+                text: "Install " + InstallerController.productName
                 level: 1
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
@@ -44,7 +45,7 @@ TunaComponents.SetupModule {
             }
 
             Label {
-                text: "This wizard will guide you through installing TunaOS onto this computer."
+                text: "This wizard will guide you through installing " + InstallerController.productName + " onto this computer."
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
 

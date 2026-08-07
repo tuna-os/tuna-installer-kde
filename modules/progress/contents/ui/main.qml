@@ -32,7 +32,7 @@ TunaComponents.SetupModule {
             }
 
             Label {
-                text: "Installing TunaOS onto " + InstallerController.disk + ". Do not power off the machine."
+                text: "Installing " + InstallerController.productName + " onto " + InstallerController.disk + ". Do not power off the machine."
                 wrapMode: Text.Wrap
 
                 Layout.fillWidth: true

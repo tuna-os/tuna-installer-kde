@@ -39,13 +39,18 @@ TunaComponents.SetupModule {
             // The wording is the Widgets page's, kept deliberately. tunaOS's
             // screen contract (tests/installer-screens.yaml, vendored into
             // tests/parity_report.h) identifies a disk-selection screen by
-            // "choose the disk" / "where TunaOS will be installed", and after
-            // the rewrite no text on this step said either: run 31143012730
-            // published `"disk": false` — a required screen reported missing —
-            // in the same artifact as a screenshot of it. Reword this and that
-            // false row comes back.
+            // "choose the disk" and "be installed", and after the rewrite no
+            // text on this step said either: run 31143012730 published
+            // `"disk": false` — a required screen reported missing — in the
+            // same artifact as a screenshot of it. Reword this and that false
+            // row comes back.
+            //
+            // The product name is substituted, so this reads "Choose the disk
+            // where Skipjack will be installed." — both keywords survive the
+            // substitution because neither one spans it. That is why the
+            // sentence keeps the name in the MIDDLE and not at either end.
             Label {
-                text: "Choose the disk where TunaOS will be installed."
+                text: "Choose the disk where " + InstallerController.productName + " will be installed."
                 wrapMode: Text.Wrap
                 horizontalAlignment: Text.AlignHCenter
 

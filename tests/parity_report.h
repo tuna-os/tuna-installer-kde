@@ -74,21 +74,26 @@ struct Screen {
 inline QVector<Screen> spec()
 {
     return {
+        // No product-name keyword. Upstream removed "install tunaos" in
+        // tuna-os/tunaOS#1060: the frontends now substitute the VARIANT name
+        // from os-release ("Install Skipjack"), so a keyword containing
+        // "tunaos" matches only the fallback build and reports a missing
+        // welcome screen on every real variant ISO.
         {QStringLiteral("welcome"), true,
          {QStringLiteral("welcome"), QStringLiteral("get started"),
-          QStringLiteral("let's get"), QStringLiteral("begin"),
-          QStringLiteral("install tunaos")}},
+          QStringLiteral("let's get"), QStringLiteral("begin")}},
         // Heading/prompt text, not the "Target Disk: vda" row on the summary.
-        // The last two were added upstream after measuring the frontends'
-        // real headings: Niri's is the single word "Destination" and XFCE's
-        // says "should be" where this list said "will be", so both read as
-        // "no disk screen" for frontends that plainly have one.
+        // "destination" was added upstream after measuring the frontends'
+        // real headings: Niri's is the single word "Destination", so it read
+        // as "no disk screen" for a frontend that plainly has one.
+        // The two product-name variants ("where tunaos will/should be
+        // installed") collapsed upstream into the name-free "be installed",
+        // which matches both and also matches "where Skipjack will be
+        // installed" — the substituted wording this frontend now renders.
         {QStringLiteral("disk"), true,
          {QStringLiteral("select target disk"), QStringLiteral("select a disk"),
           QStringLiteral("choose the disk"), QStringLiteral("available disks"),
-          QStringLiteral("where tunaos will be installed"),
-          QStringLiteral("where should tunaos be installed"),
-          QStringLiteral("destination")}},
+          QStringLiteral("be installed"), QStringLiteral("destination")}},
         // NOT bare "encrypt": that matches the summary page's "Encryption: None"
         // field label, which is the OPPOSITE of having reached an encryption
         // screen — it is the exact false positive that once reported an
@@ -102,7 +107,7 @@ inline QVector<Screen> spec()
           QStringLiteral("review your choices"), QStringLiteral("summary"),
           QStringLiteral("ready to install"), QStringLiteral("about to install")}},
         // NOT "%" and NOT bare "install": one character matches OCR noise, and
-        // the disk page reads "where TunaOS will be installed". Progress screens
+        // the disk page reads "... will be installed". Progress screens
         // say what they are DOING, so match that instead.
         //
         // NOT bare "installing" either — Niri's encryption page says "without
@@ -111,12 +116,16 @@ inline QVector<Screen> spec()
         // original list; "partitioning" and "installing image" are fisherman's
         // own step lines, so they appear on every frontend's progress screen
         // and on no other screen.
+        //
+        // "installing tunaos" was dropped upstream with the other product-name
+        // keywords; the progress line now reads "Installing Skipjack onto
+        // /dev/…". Nothing is lost here — fisherman's own "partitioning" and
+        // "installing image" step lines already credit this screen.
         {QStringLiteral("install"), false,
          {QStringLiteral("installation progress"), QStringLiteral("copying files"),
           QStringLiteral("deploying"), QStringLiteral("please wait"),
-          QStringLiteral("writing image"), QStringLiteral("installing tunaos"),
-          QStringLiteral("installing\u2026"), QStringLiteral("partitioning"),
-          QStringLiteral("installing image")}},
+          QStringLiteral("writing image"), QStringLiteral("installing\u2026"),
+          QStringLiteral("partitioning"), QStringLiteral("installing image")}},
         {QStringLiteral("done"), false,
          {QStringLiteral("complete"), QStringLiteral("finished"),
           QStringLiteral("reboot"), QStringLiteral("restart"),

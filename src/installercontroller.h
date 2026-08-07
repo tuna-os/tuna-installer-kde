@@ -33,6 +33,12 @@ class InstallerController : public QObject
     // machine without a TPM only fails later, at install time.
     Q_PROPERTY(bool hasTpm READ hasTpm CONSTANT)
 
+    // The variant's name — "Skipjack", "Bonito", … — resolved ONCE at startup
+    // from os-release (see src/productname.h). Every user-visible string that
+    // used to say "TunaOS" reads this instead, so a Skipjack ISO says
+    // Skipjack. CONSTANT: os-release cannot change under a running installer.
+    Q_PROPERTY(QString productName READ productName CONSTANT)
+
     Q_PROPERTY(QString log READ log NOTIFY logChanged)
     Q_PROPERTY(bool installing READ installing NOTIFY installingChanged)
     Q_PROPERTY(bool installFinished READ installFinishedFlag NOTIFY installCompleted)
@@ -58,6 +64,7 @@ public:
     void setImage(const QString &v);
 
     bool hasTpm() const { return m_hasTpm; }
+    QString productName() const { return m_productName; }
     QString log() const { return m_log; }
     bool installing() const { return m_process != nullptr; }
     bool installFinishedFlag() const { return m_finished; }
@@ -95,5 +102,6 @@ private:
     QProcess *m_process = nullptr;
     bool m_finished = false;
     bool m_hasTpm = false;
+    QString m_productName;
     int m_exitCode = 0;
 };
