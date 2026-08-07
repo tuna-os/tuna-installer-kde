@@ -19,8 +19,10 @@
 #include <QTextStream>
 #include <QMap>
 #include <QPlainTextEdit>
+#include <QStackedWidget>
 #include "wizard.h"
 #include "pages/done.h"
+#include "parity_report.h"
 
 namespace {
 
@@ -36,6 +38,13 @@ struct Finding {
     int colours = 0;
     double flat = 0.0;
     double ink = 0.0;
+    // Recorded alongside the existing ratios so the parity report can name
+    // WHICH screen was blank rather than only how many were. Same thresholds,
+    // same verdict — nothing about the audit is relaxed.
+    double stddev = 0.0;
+    bool rendered = false;
+    QString png;
+    QString text;
 };
 
 // Read the pixels back. A capture that only checks its PNGs exist will publish
@@ -63,6 +72,7 @@ Finding audit(const QImage &img, const QString &name)
     f.colours = counts.size();
     f.flat = samples ? double(largest) / samples : 1.0;
     f.ink = samples ? double(ink) / samples : 0.0;
+    f.stddev = parity::stddev(img);
     return f;
 }
 
@@ -97,6 +107,7 @@ int main(int argc, char *argv[])
 
     QTextStream out(stdout);
     QVector<Finding> findings;
+    QVector<QImage> images;
     // The progress and done screens are genuinely empty until an install has
     // run — no log, no result. Screenshotting them as-is would document two
     // blank pages, so they are seeded with a plausible finished install. Only
@@ -128,22 +139,49 @@ int main(int argc, char *argv[])
             out << "FAIL: could not write " << path << "\n";
             return 1;
         }
-        findings.append(audit(img, p.second));
+        Finding f = audit(img, p.second);
+        f.png = path;
+        // The stack's CURRENT page only. Reading the whole wizard would collect
+        // all six pages' text at once and credit every screen on every frame.
+        if (auto *stack = wizard.findChild<QStackedWidget *>())
+            f.text = parity::pageText(stack->currentWidget());
+        findings.append(f);
+        images.append(img);
     }
 
     QStringList failures;
-    for (const auto &f : findings) {
+    for (auto &f : findings) {
         out << QStringLiteral("  %1  colours %2  largest-flat %3%  ink %4%\n")
                    .arg(f.name, -14)
                    .arg(f.colours, 5)
                    .arg(f.flat * 100, 5, 'f', 1)
                    .arg(f.ink * 100, 5, 'f', 1);
+        QStringList pageFailures;
         if (f.colours < 40)
-            failures << QStringLiteral("%1: %2 distinct colours — did not render").arg(f.name).arg(f.colours);
+            pageFailures << QStringLiteral("%1: %2 distinct colours — did not render").arg(f.name).arg(f.colours);
         if (f.flat > 0.985)
-            failures << QStringLiteral("%1: %2% one flat colour — blank page").arg(f.name).arg(f.flat * 100, 0, 'f', 1);
+            pageFailures << QStringLiteral("%1: %2% one flat colour — blank page").arg(f.name).arg(f.flat * 100, 0, 'f', 1);
         if (f.ink < 0.003)
-            failures << QStringLiteral("%1: %2% ink — nothing drawn").arg(f.name).arg(f.ink * 100, 0, 'f', 2);
+            pageFailures << QStringLiteral("%1: %2% ink — nothing drawn").arg(f.name).arg(f.ink * 100, 0, 'f', 2);
+        f.rendered = pageFailures.isEmpty();
+        failures << pageFailures;
+    }
+
+    // Emitted before the failure gate on purpose: a frontend that renders a
+    // blank page is exactly the case tunaOS's parity matrix most needs a row
+    // for. Returning first would leave the row unfilled, which is how the last
+    // crop of frontend defects survived unseen.
+    {
+        QVector<parity::Page> pages_;
+        for (const auto &f : findings)
+            pages_.append({f.name, f.png, f.text, f.rendered, f.colours, f.flat,
+                           f.ink, f.stddev});
+        QVector<int> transitions;
+        for (int i = 1; i < images.size(); ++i)
+            transitions.append(parity::changedPixels(images[i - 1], images[i]));
+        parity::write(outDir, QStringLiteral("kde"), pages_,
+                      QStringLiteral("tests/capture.cpp (Qt6 Widgets, offscreen)"),
+                      transitions, out);
     }
 
     if (!failures.isEmpty()) {
