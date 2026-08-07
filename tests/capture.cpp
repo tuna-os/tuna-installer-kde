@@ -32,8 +32,10 @@
 #include <QRect>
 #include <QTextStream>
 #include <QTimer>
+#include <QVariant>
 
 #include "installercontroller.h"
+#include "parity_report.h"
 
 using namespace Qt::StringLiterals;
 
@@ -87,6 +89,20 @@ struct Finding {
     double ink = 0.0;      // fraction of samples differing from the background
     double inkRows = 0.0;  // fraction of rows containing any drawn content
     double inkCols = 0.0;  // fraction of columns containing any drawn content
+    // Largest single-colour share of the content area. The row/column ratios
+    // above are the stronger blank-screen signal and are what this harness
+    // fails on; `flat` is carried because tunaOS's parity matrix reads it, and
+    // it is MEASURED here rather than defaulted — publishing a field the
+    // capture never computed would be a fabricated number in the one file
+    // whose whole purpose is to be believed.
+    double flat = 0.0;
+    // Recorded alongside the existing ratios so the parity report can name
+    // WHICH screen was blank rather than only how many were. Same thresholds,
+    // same verdict — nothing about the audit is relaxed.
+    double stddev = 0.0;
+    bool rendered = false;
+    QString png;
+    QString text;
 };
 
 // Read the pixels back. A capture that only checks its PNGs exist will publish
@@ -164,7 +180,51 @@ Finding audit(const QImage &image, const QRect &rect, const QString &name)
     f.ink = samples ? double(ink) / samples : 0.0;
     f.inkRows = rows ? double(inkRows) / rows : 0.0;
     f.inkCols = cols ? double(inkCols) / cols : 0.0;
+    f.flat = samples ? double(largest) / samples : 0.0;
+    f.stddev = parity::stddev(image);
     return f;
+}
+
+// Every string the CURRENT step put in its QML item tree — what the parity
+// keywords are matched against.
+//
+// parity_report.h's pageText() is QWidget-only and cannot see a QQuickItem, so
+// this is the QML equivalent, deliberately with the same two rules:
+//
+//   * scoped to the step being shown, not the whole wizard. Wizard.qml keeps
+//     every module instantiated and slides between them, so walking from the
+//     root would collect all six steps' text on every frame and credit every
+//     screen on every frame — the exact false-parity failure the spec's
+//     comments were written about.
+//   * invisible items are skipped, so a step's hidden sub-tree (the passphrase
+//     fields when encryption is off) does not contribute text the user cannot
+//     read.
+//
+// Properties are read by name because the item types live in QML: `text` covers
+// Label/Button/TextField, and FormCard's rows carry their heading in `title`
+// with the explanatory line in `description`.
+QString itemText(QQuickItem *item)
+{
+    if (!item || !item->isVisible())
+        return QString();
+    QStringList parts;
+    const auto add = [&parts](const QVariant &v) {
+        const QString s = v.toString();
+        if (!s.trimmed().isEmpty())
+            parts << s;
+    };
+    for (const char *prop : {"text", "title", "description", "subtitle"}) {
+        const QVariant v = item->property(prop);
+        if (v.isValid())
+            add(v);
+    }
+    const auto kids = item->childItems();
+    for (QQuickItem *k : kids) {
+        const QString s = itemText(k);
+        if (!s.isEmpty())
+            parts << s;
+    }
+    return parts.join(QLatin1Char(' '));
 }
 
 // Where the current step draws, in image coordinates.
@@ -346,6 +406,9 @@ int main(int argc, char *argv[])
     };
 
     QVector<Finding> findings;
+    // Kept alongside `findings` so consecutive frames can be diffed for the
+    // parity report's transition counts.
+    QVector<QImage> images;
     for (const auto &step : steps) {
         out << "  -> " << step.second << "\n";
         out.flush();
@@ -371,25 +434,54 @@ int main(int argc, char *argv[])
             out << "FAIL: could not locate the step content area for " << step.second << "\n";
             return 1;
         }
-        findings.append(audit(image, content, step.second));
+        Finding f = audit(image, content, step.second);
+        f.png = path;
+        // The step the wizard is CURRENTLY showing only. Wizard.goToStep sets
+        // `item.visible = (i === index)` on every module, and itemText() skips
+        // invisible items, so this cannot collect the other five steps' text
+        // and credit every screen on every frame.
+        f.text = itemText(window->contentItem());
+        findings.append(f);
+        images.append(image);
     }
 
     QStringList failures;
-    for (const auto &f : findings) {
+    for (auto &f : findings) {
         out << QStringLiteral("  %1  colours %2  ink %3%  rows %4%  cols %5%\n")
                    .arg(f.name, -14)
                    .arg(f.colours, 6)
                    .arg(f.ink * 100, 6, 'f', 2)
                    .arg(f.inkRows * 100, 5, 'f', 1)
                    .arg(f.inkCols * 100, 5, 'f', 1);
+        QStringList stepFailures;
         if (f.colours < MIN_COLOURS)
-            failures << QStringLiteral("%1: %2 distinct colours — did not render").arg(f.name).arg(f.colours);
+            stepFailures << QStringLiteral("%1: %2 distinct colours — did not render").arg(f.name).arg(f.colours);
         if (f.inkRows < MIN_INK_ROWS)
-            failures << QStringLiteral("%1: content on only %2% of rows (blank screen)").arg(f.name).arg(f.inkRows * 100, 0, 'f', 1);
+            stepFailures << QStringLiteral("%1: content on only %2% of rows (blank screen)").arg(f.name).arg(f.inkRows * 100, 0, 'f', 1);
         if (f.inkCols < MIN_INK_COLS)
-            failures << QStringLiteral("%1: content on only %2% of columns (blank screen)").arg(f.name).arg(f.inkCols * 100, 0, 'f', 1);
+            stepFailures << QStringLiteral("%1: content on only %2% of columns (blank screen)").arg(f.name).arg(f.inkCols * 100, 0, 'f', 1);
         if (f.ink < MIN_INK)
-            failures << QStringLiteral("%1: %2% ink — nothing drawn").arg(f.name).arg(f.ink * 100, 0, 'f', 2);
+            stepFailures << QStringLiteral("%1: %2% ink — nothing drawn").arg(f.name).arg(f.ink * 100, 0, 'f', 2);
+        f.rendered = stepFailures.isEmpty();
+        failures << stepFailures;
+    }
+
+    // Emitted before the failure gate on purpose: a frontend that renders a
+    // blank screen is exactly the case tunaOS's parity matrix most needs a row
+    // for. Returning first would leave the row unfilled, which is how the last
+    // crop of frontend defects survived unseen.
+    {
+        QVector<parity::Page> reportPages;
+        for (const auto &f : findings)
+            reportPages.append({f.name, f.png, f.text, f.rendered, f.colours,
+                                f.flat, f.ink, f.stddev});
+        QVector<int> transitions;
+        for (int i = 1; i < images.size(); ++i)
+            transitions.append(parity::changedPixels(images[i - 1], images[i]));
+        parity::write(outDir, QStringLiteral("kde"), reportPages,
+                      QStringLiteral("tests/capture.cpp (Kirigami/QML, offscreen)"),
+                      transitions, out);
+    }
     }
 
     if (!failures.isEmpty()) {

@@ -85,7 +85,32 @@ jobs:
           $IM -delay 240 -loop 0 docs/screenshots/0*.png docs/screenshots/walkthrough.gif
           ls -l docs/screenshots
 
-      - uses: actions/upload-artifact@v4
+      # Warns if the screen contract vendored into tests/parity_report.h has
+      # fallen behind tunaOS's. Reporting parity against a spec nobody else
+      # uses would be worse than reporting nothing. Never fails the build: an
+      # unreachable network must not turn a working capture red.
+      - name: check screen spec has not drifted
+        if: always()
+        continue-on-error: true
+        run: |
+          curl -fsSL --max-time 10 -o /tmp/installer-screens.yaml \
+            https://raw.githubusercontent.com/tuna-os/tunaOS/main/tests/installer-screens.yaml || {
+              echo "::notice::could not fetch upstream spec — drift not checked"; exit 0; }
+          # Comments are stripped FIRST. The spec file quotes example strings
+          # inside its comments to explain keywords it deliberately rejects
+          # ("NOT 'installing tunaos'"), and reading those as keywords makes
+          # the check warn about a keyword that upstream does not have.
+          sed 's/#.*//' /tmp/installer-screens.yaml \
+            | grep -oE '"[^"]+"' | tr -d '"' | sort -u | while read -r kw; do
+                grep -qiF "$kw" tests/parity_report.h \
+                  || echo "::warning::upstream keyword missing from vendored spec: $kw"
+              done
+          exit 0
+
+      # Also carries walkthrough-kde.json — the parity report tunaOS's
+      # installer matrix consumes (docs/INSTALLER-FRONTENDS.md). It is written
+      # into the same directory, so it needs no separate upload.
+      - uses: actions/upload-artifact@v7
         # always(): the capture fails when a screen renders wrong, which is
         # exactly when the picture is needed.
         if: always()
