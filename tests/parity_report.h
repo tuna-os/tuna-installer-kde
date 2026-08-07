@@ -126,10 +126,19 @@ inline QVector<Screen> spec()
           QStringLiteral("deploying"), QStringLiteral("please wait"),
           QStringLiteral("writing image"), QStringLiteral("installing\u2026"),
           QStringLiteral("partitioning"), QStringLiteral("installing image")}},
+        // NOT "reboot"/"restart", NOT bare "complete"/"finished"/"success":
+        // a LOGIN GREETER satisfies those. cosmic-greeter's power menu offers
+        // Restart, Power Off and Suspend, so tunaOS run 31183217981 — stuck on
+        // the greeter with the installer never launched — was still credited
+        // with reaching the FINISHED screen. Synced from tuna-os/tunaOS#1075.
         {QStringLiteral("done"), false,
-         {QStringLiteral("complete"), QStringLiteral("finished"),
-          QStringLiteral("reboot"), QStringLiteral("restart"),
-          QStringLiteral("success")}},
+         {QStringLiteral("installation complete"),
+          QStringLiteral("installation finished"),
+          QStringLiteral("is installed"),
+          QStringLiteral("has been installed"),
+          QStringLiteral("remove the installation media"),
+          QStringLiteral("restart to boot"),
+          QStringLiteral("reboot into")}},
     };
 }
 
