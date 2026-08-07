@@ -1,0 +1,151 @@
+{
+    "activation_key": null,
+    "advanced_transitions": 5,
+    "failures": 0,
+    "flavor": "kde",
+    "frames": 6,
+    "harness": "tests/capture.cpp (Qt6 Widgets, offscreen)",
+    "notes": "GPU-less capture: pages are driven programmatically and text is read from the widget tree, so this reports SCREEN PARITY only. It does not measure keyboard navigation, compositor rendering, or that the frontend launches under its real desktop — those stay the VM walkthrough's job.",
+    "ocr": false,
+    "pages": [
+        {
+            "colours": 604,
+            "flat": 0.9776651305683564,
+            "ink": 0.009078341013824884,
+            "name": "01-welcome",
+            "png": "docs/screenshots/01-welcome.png",
+            "rendered": true,
+            "stddev": 0.070281453700702
+        },
+        {
+            "colours": 473,
+            "flat": 0.5660983102918586,
+            "ink": 0.026313364055299538,
+            "name": "02-disk",
+            "png": "docs/screenshots/02-disk.png",
+            "rendered": true,
+            "stddev": 0.09396580142897545
+        },
+        {
+            "colours": 650,
+            "flat": 0.9811059907834101,
+            "ink": 0.0066359447004608295,
+            "name": "03-encryption",
+            "png": "docs/screenshots/03-encryption.png",
+            "rendered": true,
+            "stddev": 0.05473164896736741
+        },
+        {
+            "colours": 554,
+            "flat": 0.9791705069124425,
+            "ink": 0.007219662058371736,
+            "name": "04-confirm",
+            "png": "docs/screenshots/04-confirm.png",
+            "rendered": true,
+            "stddev": 0.06273228428626501
+        },
+        {
+            "colours": 766,
+            "flat": 0.8840860215053763,
+            "ink": 0.009738863287250384,
+            "name": "05-progress",
+            "png": "docs/screenshots/05-progress.png",
+            "rendered": true,
+            "stddev": 0.08218605317532612
+        },
+        {
+            "colours": 550,
+            "flat": 0.9774961597542243,
+            "ink": 0.008571428571428572,
+            "name": "06-done",
+            "png": "docs/screenshots/06-done.png",
+            "rendered": true,
+            "stddev": 0.07190142158799864
+        }
+    ],
+    "rendered_frames": 6,
+    "screens": {
+        "disk": true,
+        "done": true,
+        "encryption": true,
+        "install": false,
+        "summary": true,
+        "welcome": true
+    },
+    "screens_detail": {
+        "disk": {
+            "matched_keywords": [
+                "select target disk",
+                "choose the disk",
+                "where tunaos will be installed"
+            ],
+            "on_pages": [
+                "02-disk"
+            ],
+            "reached": true,
+            "required": true
+        },
+        "done": {
+            "matched_keywords": [
+                "complete",
+                "restart",
+                "success"
+            ],
+            "on_pages": [
+                "06-done"
+            ],
+            "reached": true,
+            "required": false
+        },
+        "encryption": {
+            "matched_keywords": [
+                "disk encryption"
+            ],
+            "on_pages": [
+                "03-encryption"
+            ],
+            "reached": true,
+            "required": false
+        },
+        "install": {
+            "matched_keywords": [
+            ],
+            "on_pages": [
+            ],
+            "reached": false,
+            "required": false
+        },
+        "summary": {
+            "matched_keywords": [
+                "confirm installation",
+                "review your choices"
+            ],
+            "on_pages": [
+                "04-confirm"
+            ],
+            "reached": true,
+            "required": true
+        },
+        "welcome": {
+            "matched_keywords": [
+                "get started"
+            ],
+            "on_pages": [
+                "01-welcome"
+            ],
+            "reached": true,
+            "required": true
+        }
+    },
+    "source": "offscreen-capture",
+    "strict": true,
+    "text_source": "widget-tree",
+    "transition_pixels": [
+        254576,
+        253498,
+        14654,
+        534523,
+        531828
+    ],
+    "visual_states": 6
+}
