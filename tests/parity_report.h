@@ -15,8 +15,8 @@
 // HOW IT DIFFERS FROM THE VM HARNESS, stated so nobody reads more into the
 // numbers than is there:
 //
-//   * Text comes from the WIDGET TREE, not OCR (`"ocr": false`,
-//     `"text_source": "widget-tree"`). Stronger evidence for keyword matching
+//   * Text comes from the ITEM TREE, not OCR (`"ocr": false`,
+//     `"text_source": "qml-item-tree"`). Stronger evidence for keyword matching
 //     — no recognition error — and weaker evidence that a human could read it.
 //     The pixel audit is what covers the latter, per page, as `rendered`.
 //   * `activation_key` is null. Pages are driven by navigateTo(), so this run
@@ -292,20 +292,22 @@ inline bool write(const QString &outDir, const QString &flavor,
     // worked when none was pressed would be exactly the self-satisfying
     // assertion docs/INSTALLER-FRONTENDS.md warns about.
     summary[QStringLiteral("activation_key")] = QJsonValue();
-    summary[QStringLiteral("ocr")] = false; // widget tree, not OCR
+    summary[QStringLiteral("ocr")] = false; // item tree, not OCR
     summary[QStringLiteral("screens")] = reached;
     summary[QStringLiteral("strict")] = true;
     summary[QStringLiteral("failures")] = 0;
     // ── extra context; a consumer reading only the above is unaffected ────
     summary[QStringLiteral("source")] = QStringLiteral("offscreen-capture");
     summary[QStringLiteral("harness")] = harness;
-    summary[QStringLiteral("text_source")] = QStringLiteral("widget-tree");
+    // The KDE capture reads a QML item tree (tests/capture.cpp itemText()), not
+    // a QWidget one. Same kind of evidence, and the field has to say which.
+    summary[QStringLiteral("text_source")] = QStringLiteral("qml-item-tree");
     summary[QStringLiteral("screens_detail")] = detail;
     summary[QStringLiteral("pages")] = pageArr;
     summary[QStringLiteral("transition_pixels")] = transArr;
     summary[QStringLiteral("notes")] = QStringLiteral(
         "GPU-less capture: pages are driven programmatically and text is read "
-        "from the widget tree, so this reports SCREEN PARITY only. It does not "
+        "from the item tree, so this reports SCREEN PARITY only. It does not "
         "measure keyboard navigation, compositor rendering, or that the "
         "frontend launches under its real desktop — those stay the VM "
         "walkthrough's job.");

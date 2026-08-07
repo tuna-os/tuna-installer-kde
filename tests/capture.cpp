@@ -201,8 +201,22 @@ Finding audit(const QImage &image, const QRect &rect, const QString &name)
 //     read.
 //
 // Properties are read by name because the item types live in QML: `text` covers
-// Label/Button/TextField, and FormCard's rows carry their heading in `title`
-// with the explanatory line in `description`.
+// Label/Button/TextField, FormCard's rows carry their heading in `title` with
+// the explanatory line in `description`, and FormTextFieldDelegate names its
+// field in `label`.
+//
+// Strings are joined with a NEWLINE, one item per line, and that is
+// load-bearing. Every keyword in the spec is a phrase inside a single string
+// ("disk encryption" is the encryption step's heading), so nothing legitimate
+// spans two items, while a space join invents phrases that appear on no line of
+// the UI. Run 31143012730 published one: the confirm step's form rows read
+// "Encryption" and "Passphrase (LUKS)", which space-joined contains "encryption
+// passphrase", so the report credited an encryption screen off the SUMMARY page
+// — the exact false row the spec's comments were written about.
+//
+// A masked field's contents are never read. The capture types into nothing, so
+// today this only matters in principle, but a passphrase belongs in no
+// artifact and is not screen text a keyword should ever match.
 QString itemText(QQuickItem *item)
 {
     if (!item || !item->isVisible())
@@ -213,7 +227,12 @@ QString itemText(QQuickItem *item)
         if (!s.trimmed().isEmpty())
             parts << s;
     };
-    for (const char *prop : {"text", "title", "description", "subtitle"}) {
+    // TextInput.Normal is 0; Password and PasswordEchoOnEdit are not.
+    const QVariant echo = item->property("echoMode");
+    const bool masked = echo.isValid() && echo.toInt() != 0;
+    for (const char *prop : {"text", "title", "description", "subtitle", "label"}) {
+        if (masked && qstrcmp(prop, "text") == 0)
+            continue;
         const QVariant v = item->property(prop);
         if (v.isValid())
             add(v);
@@ -224,7 +243,7 @@ QString itemText(QQuickItem *item)
         if (!s.isEmpty())
             parts << s;
     }
-    return parts.join(QLatin1Char(' '));
+    return parts.join(QLatin1Char('\n'));
 }
 
 // Where the current step draws, in image coordinates.

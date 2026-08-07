@@ -36,6 +36,25 @@ TunaComponents.SetupModule {
             anchors.fill: parent
             spacing: Kirigami.Units.smallSpacing
 
+            // The wording is the Widgets page's, kept deliberately. tunaOS's
+            // screen contract (tests/installer-screens.yaml, vendored into
+            // tests/parity_report.h) identifies a disk-selection screen by
+            // "choose the disk" / "where TunaOS will be installed", and after
+            // the rewrite no text on this step said either: run 31143012730
+            // published `"disk": false` — a required screen reported missing —
+            // in the same artifact as a screenshot of it. Reword this and that
+            // false row comes back.
+            Label {
+                text: "Choose the disk where TunaOS will be installed."
+                wrapMode: Text.Wrap
+                horizontalAlignment: Text.AlignHCenter
+
+                Layout.fillWidth: true
+                Layout.maximumWidth: root.cardWidth
+                Layout.alignment: Qt.AlignHCenter
+                Layout.bottomMargin: Kirigami.Units.smallSpacing
+            }
+
             Kirigami.InlineMessage {
                 type: Kirigami.MessageType.Warning
                 visible: true
