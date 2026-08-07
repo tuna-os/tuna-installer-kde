@@ -1,58 +1,104 @@
 cmake_minimum_required(VERSION 3.22)
 project(tuna-installer-kde VERSION 0.1.0 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
+# Kirigami, Kirigami Addons (FormCard) and the org.kde.desktop Controls style
+# are QML-only dependencies: nothing here links against KF6, they are resolved
+# at runtime from the QML import path. That keeps the build to plain Qt 6 while
+# the UI is fully Plasma-styled.
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets Qml Quick QuickControls2)
 
-set(SOURCES
-    src/main.cpp
-    src/wizard.cpp
+qt_standard_project_setup(REQUIRES 6.5)
+
+# --- org.tunaos.installer.components -----------------------------------------
+# SetupModule, the per-step base type. Split into its own QML module for the
+# same reason KISS does: modules import it without importing the app.
+qt_add_library(tunainstallercomponents STATIC)
+
+qt_add_qml_module(tunainstallercomponents
+    URI org.tunaos.installer.components
+    VERSION 1.0
+    # Distinct on-disk output dirs; two QML modules cannot share one.
+    OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/qml/org/tunaos/installer/components
+    SOURCES
+        src/components/setupmodule.cpp
+        src/components/setupmodule.h
+)
+
+target_include_directories(tunainstallercomponents PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/components)
+target_link_libraries(tunainstallercomponents PUBLIC Qt6::Quick Qt6::Qml)
+
+# --- org.tunaos.installer -----------------------------------------------------
+set(BACKEND_SOURCES
     src/recipe.cpp
-    src/offline.cpp
-    src/pages/welcome.cpp
-    src/pages/diskselection.cpp
-    src/pages/encryption.cpp
-    src/pages/confirm.cpp
-    src/pages/progress.cpp
-    src/pages/done.cpp
-)
-
-set(HEADERS
-    src/wizard.h
     src/recipe.h
+    src/offline.cpp
     src/offline.h
-    src/pages/welcome.h
-    src/pages/diskselection.h
-    src/pages/confirm.h
-    src/pages/progress.h
-    src/pages/done.h
+    src/diskmodel.cpp
+    src/diskmodel.h
+    src/installercontroller.cpp
+    src/installercontroller.h
 )
 
-add_executable(tuna-installer-kde ${SOURCES} ${HEADERS})
+# The whole UI lives in a static library so that both the installer and the
+# screenshot harness link the *same* QML module — registering one URI from two
+# targets would collide on the generated qmldir.
+qt_add_library(tunainstallerapp STATIC)
 
-target_link_libraries(tuna-installer-kde PRIVATE
+# Each step lives at modules/<name>/contents/ui/main.qml, the KISS layout, and
+# is aliased into the QML module resource as modules/<name>/main.qml so that
+# Wizard.qml can resolve it with a plain relative URL.
+set(STEP_MODULES welcome disk encryption confirm progress done)
+set(STEP_QML_FILES)
+foreach(step ${STEP_MODULES})
+    set(src "modules/${step}/contents/ui/main.qml")
+    set_source_files_properties(${src} PROPERTIES
+        QT_RESOURCE_ALIAS "modules/${step}/main.qml")
+    list(APPEND STEP_QML_FILES ${src})
+endforeach()
+
+set_source_files_properties(src/qml/Main.qml PROPERTIES QT_RESOURCE_ALIAS Main.qml)
+set_source_files_properties(src/qml/Wizard.qml PROPERTIES QT_RESOURCE_ALIAS Wizard.qml)
+
+qt_add_qml_module(tunainstallerapp
+    URI org.tunaos.installer
+    VERSION 1.0
+    OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/qml/org/tunaos/installer
+    QML_FILES
+        src/qml/Main.qml
+        src/qml/Wizard.qml
+        ${STEP_QML_FILES}
+    SOURCES
+        ${BACKEND_SOURCES}
+)
+
+target_include_directories(tunainstallerapp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(tunainstallerapp PUBLIC
     Qt6::Core
+    Qt6::Gui
+    # QApplication, not QGuiApplication: the org.kde.desktop Controls style
+    # paints through QStyle and needs a widgets-capable app object.
     Qt6::Widgets
+    Qt6::Qml
+    Qt6::Quick
+    Qt6::QuickControls2
+    tunainstallercomponentsplugin
 )
 
-target_include_directories(tuna-installer-kde PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+qt_add_executable(tuna-installer-kde src/main.cpp)
+target_link_libraries(tuna-installer-kde PRIVATE tunainstallerapp tunainstallerappplugin)
 
-# Screenshot capture harness. Reuses the real wizard and pages — only main.cpp
-# is swapped — so the images document the shipped UI rather than a replica.
+# --- screenshot capture -------------------------------------------------------
+# Reuses the real QML module — only main.cpp is swapped — so the images
+# document the shipped UI rather than a replica.
 option(BUILD_CAPTURE "Build the screenshot capture harness" OFF)
 if(BUILD_CAPTURE)
-    set(CAPTURE_SOURCES ${SOURCES})
-    list(REMOVE_ITEM CAPTURE_SOURCES src/main.cpp)
-    add_executable(tuna-installer-capture tests/capture.cpp ${CAPTURE_SOURCES} ${HEADERS})
-    target_link_libraries(tuna-installer-capture PRIVATE Qt6::Core Qt6::Widgets)
-    target_include_directories(tuna-installer-capture PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    qt_add_executable(tuna-installer-capture tests/capture.cpp)
+    target_link_libraries(tuna-installer-capture PRIVATE tunainstallerapp tunainstallerappplugin)
 endif()
 
-# Install
 install(TARGETS tuna-installer-kde RUNTIME DESTINATION bin)
 install(FILES fisherman-recipe.schema.json DESTINATION share/tuna-installer-kde)

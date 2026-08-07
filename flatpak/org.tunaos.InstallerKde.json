@@ -53,6 +53,18 @@
       ]
     },
     {
+      "name": "kirigami-addons",
+      "buildsystem": "cmake-ninja",
+      "config-opts": ["-DBUILD_TESTING=OFF", "-DCMAKE_BUILD_TYPE=Release"],
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://invent.kde.org/libraries/kirigami-addons.git",
+          "tag": "v1.7.0"
+        }
+      ]
+    },
+    {
       "name": "tuna-installer-kde",
       "buildsystem": "cmake-ninja",
       "config-opts": ["-DCMAKE_BUILD_TYPE=Release"],

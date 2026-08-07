@@ -15,8 +15,8 @@
 // HOW IT DIFFERS FROM THE VM HARNESS, stated so nobody reads more into the
 // numbers than is there:
 //
-//   * Text comes from the WIDGET TREE, not OCR (`"ocr": false`,
-//     `"text_source": "widget-tree"`). Stronger evidence for keyword matching
+//   * Text comes from the ITEM TREE, not OCR (`"ocr": false`,
+//     `"text_source": "qml-item-tree"`). Stronger evidence for keyword matching
 //     — no recognition error — and weaker evidence that a human could read it.
 //     The pixel audit is what covers the latter, per page, as `rendered`.
 //   * `activation_key` is null. Pages are driven by navigateTo(), so this run
@@ -79,10 +79,16 @@ inline QVector<Screen> spec()
           QStringLiteral("let's get"), QStringLiteral("begin"),
           QStringLiteral("install tunaos")}},
         // Heading/prompt text, not the "Target Disk: vda" row on the summary.
+        // The last two were added upstream after measuring the frontends'
+        // real headings: Niri's is the single word "Destination" and XFCE's
+        // says "should be" where this list said "will be", so both read as
+        // "no disk screen" for frontends that plainly have one.
         {QStringLiteral("disk"), true,
          {QStringLiteral("select target disk"), QStringLiteral("select a disk"),
           QStringLiteral("choose the disk"), QStringLiteral("available disks"),
-          QStringLiteral("where tunaos will be installed")}},
+          QStringLiteral("where tunaos will be installed"),
+          QStringLiteral("where should tunaos be installed"),
+          QStringLiteral("destination")}},
         // NOT bare "encrypt": that matches the summary page's "Encryption: None"
         // field label, which is the OPPOSITE of having reached an encryption
         // screen — it is the exact false positive that once reported an
@@ -98,10 +104,19 @@ inline QVector<Screen> spec()
         // NOT "%" and NOT bare "install": one character matches OCR noise, and
         // the disk page reads "where TunaOS will be installed". Progress screens
         // say what they are DOING, so match that instead.
+        //
+        // NOT bare "installing" either — Niri's encryption page says "without
+        // reinstalling", and "installing" is a substring of it. The trailing
+        // entries were added upstream after zero of four frontends matched the
+        // original list; "partitioning" and "installing image" are fisherman's
+        // own step lines, so they appear on every frontend's progress screen
+        // and on no other screen.
         {QStringLiteral("install"), false,
          {QStringLiteral("installation progress"), QStringLiteral("copying files"),
           QStringLiteral("deploying"), QStringLiteral("please wait"),
-          QStringLiteral("writing image")}},
+          QStringLiteral("writing image"), QStringLiteral("installing tunaos"),
+          QStringLiteral("installing\u2026"), QStringLiteral("partitioning"),
+          QStringLiteral("installing image")}},
         {QStringLiteral("done"), false,
          {QStringLiteral("complete"), QStringLiteral("finished"),
           QStringLiteral("reboot"), QStringLiteral("restart"),
@@ -277,20 +292,22 @@ inline bool write(const QString &outDir, const QString &flavor,
     // worked when none was pressed would be exactly the self-satisfying
     // assertion docs/INSTALLER-FRONTENDS.md warns about.
     summary[QStringLiteral("activation_key")] = QJsonValue();
-    summary[QStringLiteral("ocr")] = false; // widget tree, not OCR
+    summary[QStringLiteral("ocr")] = false; // item tree, not OCR
     summary[QStringLiteral("screens")] = reached;
     summary[QStringLiteral("strict")] = true;
     summary[QStringLiteral("failures")] = 0;
     // ── extra context; a consumer reading only the above is unaffected ────
     summary[QStringLiteral("source")] = QStringLiteral("offscreen-capture");
     summary[QStringLiteral("harness")] = harness;
-    summary[QStringLiteral("text_source")] = QStringLiteral("widget-tree");
+    // The KDE capture reads a QML item tree (tests/capture.cpp itemText()), not
+    // a QWidget one. Same kind of evidence, and the field has to say which.
+    summary[QStringLiteral("text_source")] = QStringLiteral("qml-item-tree");
     summary[QStringLiteral("screens_detail")] = detail;
     summary[QStringLiteral("pages")] = pageArr;
     summary[QStringLiteral("transition_pixels")] = transArr;
     summary[QStringLiteral("notes")] = QStringLiteral(
         "GPU-less capture: pages are driven programmatically and text is read "
-        "from the widget tree, so this reports SCREEN PARITY only. It does not "
+        "from the item tree, so this reports SCREEN PARITY only. It does not "
         "measure keyboard navigation, compositor rendering, or that the "
         "frontend launches under its real desktop — those stay the VM "
         "walkthrough's job.");
