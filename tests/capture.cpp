@@ -338,9 +338,28 @@ int main(int argc, char *argv[])
     // answer "is Breeze installed" (yes). A diagnostic that sends you after
     // the wrong thing is worse than none.
     QTextStream out(stdout);
+    // Labelled as QIcon's answer, because it is only QIcon's answer.
+    //
+    // This line used to read "breeze present: no" on runs whose icons all
+    // drew — the welcome step's drive-harddisk hero icon, the InlineMessage
+    // warning triangle, the Back/Next chevrons, the done step's checkmark are
+    // every one of them present in the committed PNGs. It said "no" anyway,
+    // and the wording invited exactly the conclusion it produced: that the
+    // screenshots were icon-less. They are not.
+    //
+    // Kirigami.Icon does not resolve through QIcon::hasThemeIcon. It has its
+    // own lookup, which also strips the "-symbolic" suffix Breeze ships no
+    // device alias for. So QIcon answering "no" while the UI draws the icon is
+    // the expected result, not a defect — and a probe whose false reading
+    // looks like a finding is worse than no probe.
+    //
+    // The real evidence that icons render is the pixel audit below plus
+    // looking at the images, which is what settled it.
     out << "style: " << QQuickStyle::name()
         << "  icon theme: " << QIcon::themeName()
-        << "  breeze present: " << (QIcon::hasThemeIcon(u"drive-harddisk"_s) ? "yes" : "no")
+        << "  (QIcon resolves drive-harddisk: "
+        << (QIcon::hasThemeIcon(u"drive-harddisk"_s) ? "yes" : "no")
+        << " — Kirigami.Icon has its own lookup and is unaffected)"
         << "\n";
 
     const QString outDir = argc > 1 ? QString::fromLocal8Bit(argv[1])
