@@ -23,6 +23,7 @@
 #include <QFile>
 #include <QImage>
 #include <QMap>
+#include <QMetaMethod>
 #include <QIcon>
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
@@ -159,6 +160,23 @@ int main(int argc, char *argv[])
                                     : u"docs/screenshots"_s;
     QDir().mkpath(outDir);
 
+    // Clear anything already there. A run that dies on the first screen must
+    // not leave the previous run's — or the previous UI's — images sitting in
+    // the output directory, where the artifact upload will happily publish them
+    // as if they were this run's output. That is the same "looks like output,
+    // isn't" failure the pixel audit exists to catch.
+    {
+        QDir dir(outDir);
+        const QStringList stale = dir.entryList({u"*.png"_s, u"*.gif"_s}, QDir::Files);
+        for (const QString &name : stale) {
+            if (!dir.remove(name)) {
+                out << "FAIL: could not clear stale " << name << "\n";
+                return 1;
+            }
+        }
+        out << "cleared " << stale.size() << " stale image(s) from " << outDir << "\n";
+    }
+
     // Feed the disk step a realistic machine; a CI container exposes no disks,
     // and the step would honestly but uselessly render "No disks found".
     if (qEnvironmentVariableIsEmpty("TUNA_INSTALLER_FAKE_LSBLK")) {
@@ -180,9 +198,30 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().constFirst());
+    QObject *rootObject = engine.rootObjects().constFirst();
+    out << "root object: " << rootObject->metaObject()->className()
+        << " (objectName \"" << rootObject->objectName() << "\")\n";
+
+    auto *window = qobject_cast<QQuickWindow *>(rootObject);
     if (!window) {
         out << "FAIL: root object is not a window\n";
+        return 1;
+    }
+
+    // A QML function declared with a typed parameter (`index: int`) lands in
+    // the metaobject as an int, so Q_ARG(int) matches; an untyped one takes a
+    // QVariant. Try both rather than assume, and say which worked — a bare
+    // "could not invoke" names the symptom, not the cause.
+    const auto callGoToStep = [&](int index) {
+        if (QMetaObject::invokeMethod(window, "goToStep", Q_ARG(int, index)))
+            return true;
+        return QMetaObject::invokeMethod(window, "goToStep", Q_ARG(QVariant, QVariant(index)));
+    };
+    if (!callGoToStep(0)) {
+        out << "FAIL: goToStep is not invokable on the root object. Methods:\n";
+        const QMetaObject *mo = window->metaObject();
+        for (int i = 0; i < mo->methodCount(); ++i)
+            out << "    " << mo->method(i).methodSignature() << "\n";
         return 1;
     }
 
@@ -217,13 +256,7 @@ int main(int argc, char *argv[])
         out << "  -> " << step.second << "\n";
         out.flush();
 
-        // Q_ARG(int), not Q_ARG(QVariant): Main.qml declares
-        // goToStep(index: int), and an annotated QML parameter is exposed to
-        // the meta-object system with that type, so the metamethod really is
-        // goToStep(int). QVariant is only correct for an *unannotated* QML
-        // parameter, and invokeMethod matches the signature exactly: with the
-        // wrong one it returns false and the capture aborts on step 0.
-        if (!QMetaObject::invokeMethod(window, "goToStep", Q_ARG(int, step.first))) {
+        if (!callGoToStep(step.first)) {
             out << "FAIL: could not invoke goToStep(" << step.first << ")\n";
             return 1;
         }
