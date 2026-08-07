@@ -32,11 +32,11 @@ on:
 jobs:
   capture:
     runs-on: ubuntu-24.04
-    container: fedora:42
+    container: quay.io/fedora/fedora:44
     permissions:
       contents: write
     steps:
-      # Runs before checkout: the fedora:42 image has no git, so
+      # Runs before checkout: the fedora image has no git, so
       # actions/checkout would fall back to the slower REST tarball path.
       - name: install Qt6 + KF6 runtime
         run: |
@@ -49,7 +49,7 @@ jobs:
             ImageMagick
           echo "--- versions ---"
           # Fatal on purpose. The first run asked for "breeze-icons", which is
-          # not a binary package on Fedora 42 — dnf resolved it through a
+          # not a binary package on Fedora — dnf resolved it through a
           # Provides and installed something, and this check is what caught
           # that the icon theme the UI actually needs was not there. The KF6
           # theme is kf6-breeze-icons.
