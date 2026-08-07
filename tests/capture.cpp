@@ -271,7 +271,19 @@ QRect stepContentRect(QQuickWindow *window, const QImage &image)
 // log, no result. Screenshotting them as-is would document two blank screens, so
 // they get a plausible finished install. Only the DATA is fixture; the QML is
 // the shipped QML.
-const char *kFixtureLog =
+// Split in two on purpose.
+//
+// A single finished-install fixture put "\u2713 Installation complete!" in the
+// log on the PROGRESS screen, and the parity report duly credited the `done`
+// screen to 05-progress (keyword "complete"). That is the phantom-row failure
+// the screen spec's comments are entirely about — a screen credited to a frame
+// that is not it — and here the harness manufactured it itself, by showing a
+// progress screen an install that had already ended.
+//
+// It also made a misleading documentation image: 05-progress is meant to show
+// an install UNDER WAY. So the progress screen gets a log that stops mid-run,
+// and the finished log is loaded just before the done screen is captured.
+const char *kFixtureLogRunning =
     "[1/9] Partitioning /dev/nvme0n1\n"
     "  created EFI system partition (1.0 GiB, FAT32)\n"
     "  created root partition (511.1 GiB)\n"
@@ -280,7 +292,9 @@ const char *kFixtureLog =
     "[4/9] Formatting root filesystem (xfs)\n"
     "[5/9] Mounting target at /mnt\n"
     "[6/9] Installing image ghcr.io/tuna-os/albacore:kde\n"
-    "  pulling layers... 1.9 GiB\n"
+    "  pulling layers... 1.9 GiB\n";
+
+const char *kFixtureLogFinished =
     "[7/9] Writing bootloader entries\n"
     "[8/9] Setting hostname tunaos\n"
     "[9/9] Finalising\n"
@@ -409,7 +423,12 @@ int main(int argc, char *argv[])
     controller->setEncryptionType(u"luks-passphrase"_s);
     controller->setPassphrase(u"correct horse battery staple"_s);
     // Fills the log and the result. Runs no process and touches no disk.
-    controller->loadDemoState(QString::fromUtf8(kFixtureLog), 0);
+    // exitCode 0, not a "still running" sentinel: loadDemoState() always sets
+    // the finished flag, so there is no way to express a live install through
+    // it, and widening the controller's API for the harness's convenience
+    // would be the tail wagging the dog. The log split is what removes the
+    // false credit; the exit code is not read on the progress screen.
+    controller->loadDemoState(QString::fromUtf8(kFixtureLogRunning), 0);
 
     window->resize(1000, 700);
     window->show();
@@ -431,6 +450,15 @@ int main(int argc, char *argv[])
     for (const auto &step : steps) {
         out << "  -> " << step.second << "\n";
         out.flush();
+
+        // The install "finishes" between the progress and done screens, which
+        // is the only ordering under which each screen shows what it is for.
+        if (step.second == u"06-done"_s) {
+            controller->loadDemoState(
+                QString::fromUtf8(kFixtureLogRunning)
+                    + QString::fromUtf8(kFixtureLogFinished),
+                0);
+        }
 
         if (!callGoToStep(step.first)) {
             out << "FAIL: could not invoke goToStep(" << step.first << ")\n";
