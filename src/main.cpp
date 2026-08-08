@@ -2,6 +2,8 @@
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
 
+#include "readiness.h"
+
 using namespace Qt::StringLiterals;
 
 int main(int argc, char *argv[])
@@ -21,6 +23,13 @@ int main(int argc, char *argv[])
     engine.loadFromModule("org.tunaos.installer"_L1, "Main"_L1);
     if (engine.rootObjects().isEmpty())
         return -1;
+
+    // Record that a frame actually reached the compositor. installer-smoke.yml
+    // proves this frontend is up with `flatpak ps` — "is the process alive",
+    // which is a different question from "did the user get a window". They
+    // have already diverged: the COSMIC leg ran the process with no window
+    // ever appearing and the check stayed green. See readiness.h.
+    readiness::armStamp(engine.rootObjects().constFirst());
 
     return app.exec();
 }
