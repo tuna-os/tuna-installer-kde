@@ -43,6 +43,8 @@ set(BACKEND_SOURCES
     src/diskmodel.h
     src/installercontroller.cpp
     src/installercontroller.h
+    src/readiness.cpp
+    src/readiness.h
 )
 
 # The whole UI lives in a static library so that both the installer and the
