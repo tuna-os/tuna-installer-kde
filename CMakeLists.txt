@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.22)
 project(tuna-installer-kde VERSION 0.1.0 LANGUAGES CXX)
 
+include(CTest)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
@@ -102,6 +104,20 @@ option(BUILD_CAPTURE "Build the screenshot capture harness" OFF)
 if(BUILD_CAPTURE)
     qt_add_executable(tuna-installer-capture tests/capture.cpp)
     target_link_libraries(tuna-installer-capture PRIVATE tunainstallerapp tunainstallerappplugin)
+endif()
+
+if(BUILD_TESTING)
+    find_package(Qt6 6.5 REQUIRED COMPONENTS Test)
+
+    qt_add_executable(tuna-installer-backend-tests
+        tests/test_backend.cpp
+        src/recipe.cpp
+        src/productname.cpp
+    )
+    target_include_directories(tuna-installer-backend-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    target_link_libraries(tuna-installer-backend-tests PRIVATE Qt6::Core Qt6::Test)
+
+    add_test(NAME tuna-installer-backend-tests COMMAND tuna-installer-backend-tests)
 endif()
 
 install(TARGETS tuna-installer-kde RUNTIME DESTINATION bin)
