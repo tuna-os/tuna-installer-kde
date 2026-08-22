@@ -1,93 +1,71 @@
-# tuna-installer-kde — Design
+# tuna-installer-kde design
 
-Qt6 Widgets frontend for KDE Plasma. Reads `../INSTALLER-FRONTENDS.md` for the
-shared wizard flow and recipe contract; this file covers only how it looks and
-feels.
+This repository provides a Qt 6 and Kirigami frontend for the `fisherman`
+bootc installer. The shared recipe and screen requirements live in the
+[installer frontend contract](https://github.com/tuna-os/tunaos/blob/main/docs/INSTALLER-FRONTENDS.md).
+This document describes how the KDE frontend implements that contract.
 
-## Direction
+## Architecture
 
-A Plasma-native installer that borrows Calamares' familiar shape (left rail +
-content pane) but earns its own identity from the subject: installing an OS is
-a **descent** — you go deeper with every step until the payload reaches the
-disk. The left rail is a nautical **depth gauge**, not a checklist.
+`src/qml/Main.qml` creates a `Kirigami.AbstractApplicationWindow` and hosts the
+step runner in `src/qml/Wizard.qml`. The wizard follows KDE KISS's modular
+pattern: each screen is a `SetupModule` under
+`modules/<name>/contents/ui/main.qml`. A module exposes its content and whether
+the user may continue; the wizard owns navigation, headings, and the shared
+Back and Next buttons.
 
-Everything else defers to Breeze. Boldness lives in the rail; the content pane
-is disciplined KDE HIG.
+The six modules are:
 
-## Signature element: the depth gauge rail
+1. `welcome`
+2. `disk`
+3. `encryption`
+4. `confirm`
+5. `progress`
+6. `done`
 
-- Fixed 220 px left rail with a vertical gradient from `--surface` (top) to
-  `--abyss` (bottom) — the water column.
-- Steps are depth markers: a tick, a small-caps label, and a depth reading
-  (`0 m`, `−400 m`, … `−2000 m` at Done). Completed steps sit above the
-  "waterline" indicator; the current step's tick glows `--sonar`.
-- A thin animated line (200 ms ease-out on step change) descends between
-  ticks. `prefers-reduced-motion` (Qt: `QAccessibility`/env override) disables
-  the animation, never the state change.
-- During Progress (step 7), the rail's waterline maps to the 9 fisherman
-  pipeline steps — the descent finishes exactly when the install does.
+The wizard uses slide transitions between modules instead of `SwipeView`,
+matching KISS's behaviour during window resizing. Do not put backend work in a
+page-activation hook. Activation may refresh harmless page data, such as the
+disk list, but installation starts only when the user selects Install on the
+confirmation screen.
 
-Do not add waves, bubbles, fish icons, or any second aquatic flourish. One
-metaphor, executed precisely.
+## Backend boundary
 
-## Tokens
+`InstallerController` exposes recipe state and the installation process to
+QML. It writes the selected values to a temporary recipe, launches the
+privileged `fisherman` command, streams output to the progress module, and
+removes the recipe when the process exits. The recipe can contain a disk
+encryption passphrase, so it must not be logged or retained.
 
-| Token | Hex | Use |
-|---|---|---|
-| `--abyss` | `#0B1B2B` | Rail bottom, dark anchor |
-| `--surface` | `#1E4F6E` | Rail top |
-| `--sonar` | `#2EC4B6` | Active step, focus, primary accent |
-| `--catch` | `#F4A259` | Destructive/attention (wipe-disk warning, Install button) |
-| `--paper` | Breeze `window` | Content pane bg (follow system light/dark) |
-| `--ink` | Breeze `windowText` | Content text |
+The confirmation screen is the destructive-action boundary. Back navigation
+is disabled after `fisherman` starts, and the progress module advances to the
+finished screen only after the process exits.
 
-Content pane uses Breeze roles so system light/dark and accent-color settings
-keep working; only the rail and the two accents are ours.
+## Plasma integration
 
-## Type
+Use Kirigami, Kirigami Addons, Qt Quick Controls, and `Kirigami.Units` for
+layout and sizing. Controls use the Plasma `org.kde.desktop` style and Breeze
+theme roles so system colours, fonts, icons, dark mode, and accent preferences
+continue to work. Avoid fixed pixel geometry, custom palettes, and application
+font overrides.
 
-- UI text: system font (Noto Sans on Plasma) via `QApplication::font()` — no
-  overrides in the content pane.
-- Rail labels + depth readings: **Hack**/monospace fallback
-  (`QFontDatabase::systemFont(FixedFont)`), small caps via letter-spacing +
-  uppercase, 9.5 pt. The instrument-panel voice lives only in the rail.
-- Page titles: system font, 1.6× base size, weight 600. No display face.
+Use active, direct copy. State the destructive consequence plainly, keep the
+Install label exclusive to the confirmation action, and present failures with
+the process exit status or actionable backend output.
 
-## Layout
+## Accessibility and interaction
 
-```
-┌──────────┬──────────────────────────────────────────────┐
-│   0 m ─  │  Destination                                  │
-│ WELCOME  │                                               │
-│ −400 ─   │  ┌──────────────────────────────────────────┐ │
-│ SOURCE   │  │ ⬤ Samsung SSD 990 PRO   1.0 TB   nvme0n1 │ │
-│ −800 ─▶  │  │ ○ WD Blue HDD           2.0 TB   sda     │ │
-│ DESTIN.  │  └──────────────────────────────────────────┘ │
-│ −1200 ─  │  ⚠ Everything on the selected disk will be    │
-│ SETUP    │    erased.                                    │
-│ −1600 ─  │                                               │
-│ CONFIRM  │                          [ Back ]  [ Next ]   │
-│ −2000 ─  │                                               │
-│ DONE     │                                               │
-└──────────┴──────────────────────────────────────────────┘
-```
+- Preserve a complete keyboard navigation order.
+- Never bind Escape or page activation to a destructive action.
+- Keep paired passphrase fields and their reveal controls accessible.
+- Expose validation before enabling Next or Install.
+- Keep focus and warning states visible in both light and dark themes.
 
-- Content pane: 560–720 px column, 24 px page margins, 12 px control spacing
-  (KDE HIG). Buttons bottom-right, Back left of Next, `Install` styled with
-  `--catch` and a confirm-by-typing-hostname guard is *not* used — the single
-  Confirm page is the guard.
-- Disk rows: `QListView` with 44 px rows — model name primary, size + kernel
-  name secondary in `--ink` at 70 % opacity.
+## Visual verification
 
-## Copy
-
-Active voice, second person, no nautical puns in body copy (the rail carries
-the theme; words carry information). "Everything on this disk will be erased."
-not "Prepare to make a splash!". Button labels: Next / Back / Install / Reboot.
-
-## Quality floor
-
-Keyboard: full tab order, Enter advances, Esc never destructive. All rail
-state changes mirrored in an off-screen accessible label. Passphrase fields:
-paired entry + reveal toggle, caps-lock warning. Respect Breeze dark mode in
-the content pane; the rail is dark in both themes by design.
+The screenshot workflow builds the real QML modules with `tests/capture.cpp`,
+renders every step offscreen, and checks the resulting pixels for meaningful
+content. It also produces `docs/screenshots/walkthrough-kde.json`, the parity
+report consumed by the shared installer matrix. See
+[`docs/gui-walkthrough.md`](docs/gui-walkthrough.md) for the capture contract,
+current screenshots, and safety rationale.

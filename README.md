@@ -66,7 +66,9 @@ The installer writes a JSON recipe that fisherman consumes:
 
 Encryption types: `none`, `luks-passphrase`, `tpm2-luks`, `tpm2-luks-passphrase`.
 On a live ISO, `image` may be omitted — bootc installs the running container
-(offline, no download). See `../INSTALLER-FRONTENDS.md` for the full contract.
+(offline, no download). See the
+[installer frontend contract](https://github.com/tuna-os/tunaos/blob/main/docs/INSTALLER-FRONTENDS.md)
+for the shared recipe and screen contract.
 
 ## License
 
