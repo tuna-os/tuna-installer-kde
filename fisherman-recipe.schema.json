@@ -3,7 +3,7 @@
   "title": "Fisherman Install Recipe",
   "description": "JSON recipe for the fisherman bootc install backend",
   "type": "object",
-  "required": ["disk", "image", "hostname"],
+  "required": ["disk", "hostname"],
   "properties": {
     "disk": {
       "type": "string",
@@ -23,22 +23,65 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["none", "luks"],
+          "enum": [
+            "none",
+            "luks-passphrase",
+            "tpm2-luks",
+            "tpm2-luks-passphrase"
+          ],
           "default": "none"
         },
         "passphrase": {
           "type": "string",
-          "description": "LUKS passphrase; required when type=luks"
+          "minLength": 1,
+          "description": "LUKS passphrase; required for passphrase-based encryption types"
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": ["luks-passphrase", "tpm2-luks-passphrase"]
+              }
+            },
+            "required": ["type"]
+          },
+          "then": {
+            "required": ["passphrase"]
+          }
+        }
+      ]
     },
     "image": {
       "type": "string",
-      "description": "OCI image reference, e.g. quay.io/fedora/fedora-bootc:43"
+      "description": "OCI image reference; omitted when installing the running live-ISO image"
     },
     "targetImgref": {
       "type": "string",
       "description": "Override the installed image reference in the bootloader"
+    },
+    "bootloader": {
+      "type": "string",
+      "enum": ["grub2", "systemd"],
+      "description": "Explicit bootloader selection"
+    },
+    "composeFsBackend": {
+      "type": "boolean",
+      "default": false
+    },
+    "flatpaks": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "additionalImageStores": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Local OCI stores available during an offline install"
+    },
+    "distroID": {
+      "type": "string",
+      "default": "tunaos"
     },
     "selinuxDisabled": {
       "type": "boolean",
