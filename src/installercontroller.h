@@ -10,6 +10,7 @@
 #include <QObject>
 #include <QProcess>
 #include <QString>
+#include <QTemporaryDir>
 #include <qqmlintegration.h>
 
 #include "recipe.h"
@@ -96,6 +97,7 @@ private:
     void fail(const QString &message);
 
     Recipe m_recipe;
+    QTemporaryDir m_recipeDir;
     QString m_recipePath;
     QString m_log;
     QString m_buffer;

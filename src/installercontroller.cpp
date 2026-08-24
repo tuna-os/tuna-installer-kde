@@ -2,10 +2,10 @@
 #include "offline.h"
 #include "productname.h"
 
-#include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonDocument>
+#include <QTemporaryDir>
 
 InstallerController::InstallerController(QObject *parent)
     : QObject(parent)
@@ -139,18 +139,38 @@ void InstallerController::startInstall()
     Q_EMIT logChanged();
     appendLine(QStringLiteral("Starting installation..."));
 
-    // The recipe can hold a LUKS passphrase — write it 0600 under
-    // XDG_RUNTIME_DIR, never a world-readable temp path.
-    QString base = qEnvironmentVariable("XDG_RUNTIME_DIR");
-    if (base.isEmpty())
-        base = QDir::tempPath();
-    QDir().mkpath(base + QStringLiteral("/tuna-installer"));
-    m_recipePath = base + QStringLiteral("/tuna-installer/recipe.json");
+    // The recipe can hold a LUKS passphrase — write it 0600 in a fresh
+    // 0700 private directory, never a fixed world-writable temp path.
+    //
+    // This used to be `<base>/tuna-installer/recipe.json` where base is
+    // XDG_RUNTIME_DIR or /tmp (when unset — the default under sudo, whose
+    // env_reset strips it). QDir::mkpath with a fixed name in a
+    // world-writable directory:
+    //   * follows a pre-existing attacker symlink when the file is opened
+    //     with WriteOnly|Truncate,
+    //   * creates the file 0644 (umask) and only THEN chmods it 0600, so
+    //     the passphrase is briefly world-readable,
+    //   * accepts a pre-created 0777 directory as-is (mode applied only on
+    //     creation), giving a local user ownership of the path that is
+    //     handed to root via sudo/pkexec fisherman.
+    // QTemporaryDir is the mkdtemp analogue: unpredictable 0700 directory
+    // with O_EXCL semantics, so none of those races exist. It is a member so
+    // the directory survives until fisherman exits — a local QTemporaryDir
+    // would auto-remove the recipe file the moment startInstall returns.
+    if (!m_recipeDir.isValid())
+        m_recipeDir = QTemporaryDir();
+    if (!m_recipeDir.isValid()) {
+        fail(QStringLiteral("Failed to create private recipe directory"));
+        return;
+    }
+    m_recipePath = m_recipeDir.filePath(QStringLiteral("recipe.json"));
     QFile f(m_recipePath);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
         fail(QStringLiteral("Failed to write recipe file"));
         return;
     }
+    // Inside a 0700 dir the file needs no extra hardening, but keep 0600
+    // explicit so the mode survives being copied/moved elsewhere.
     f.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner);
     f.write(QJsonDocument(m_recipe.toJson()).toJson(QJsonDocument::Indented));
     f.close();
