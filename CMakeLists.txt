@@ -113,6 +113,7 @@ if(BUILD_TESTING)
         tests/test_backend.cpp
         src/recipe.cpp
         src/productname.cpp
+        src/offline.cpp
     )
     target_include_directories(tuna-installer-backend-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
     target_link_libraries(tuna-installer-backend-tests PRIVATE Qt6::Core Qt6::Test)
