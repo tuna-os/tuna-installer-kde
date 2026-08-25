@@ -123,3 +123,15 @@ endif()
 
 install(TARGETS tuna-installer-kde RUNTIME DESTINATION bin)
 install(FILES fisherman-recipe.schema.json DESTINATION share/tuna-installer-kde)
+
+# Desktop entry, AppStream metainfo and icon.
+#
+# flatpak-builder runs appstreamcli compose over share/metainfo at the end of
+# the build; `flatpak build-bundle --oci` then turns its output into the
+# org.freedesktop.appstream.* image labels that give software centres an app
+# name, icon, licence and description. The icon is not optional here: compose
+# drops a desktop-application component that has none.
+install(FILES data/org.tunaos.InstallerKde.desktop DESTINATION share/applications)
+install(FILES data/org.tunaos.InstallerKde.metainfo.xml DESTINATION share/metainfo)
+install(FILES data/icons/hicolor/scalable/apps/org.tunaos.InstallerKde.svg
+        DESTINATION share/icons/hicolor/scalable/apps)
