@@ -1,7 +1,9 @@
+#include "offline.h"
 #include "productname.h"
 #include "recipe.h"
 
 #include <QJsonArray>
+#include <QProcessEnvironment>
 #include <QTest>
 
 class BackendTest : public QObject
@@ -16,6 +18,7 @@ private slots:
     void recipeValidation();
     void productNameParsing_data();
     void productNameParsing();
+    void offlineCommandHelpers();
 };
 
 void BackendTest::recipeDefaults()
@@ -134,6 +137,23 @@ void BackendTest::productNameParsing()
     QFETCH(QString, expected);
 
     QCOMPARE(product::prettyNameFrom(osRelease), expected);
+}
+
+void BackendTest::offlineCommandHelpers()
+{
+    const QStringList cmd = offline::fishermanCommand();
+    QVERIFY(!cmd.isEmpty());
+
+    const QStringList raw = {QStringLiteral("echo"), QStringLiteral("test")};
+    const QStringList hostWrapped = offline::hostCommand(raw);
+    QVERIFY(!hostWrapped.isEmpty());
+
+    if (offline::inFlatpak()) {
+        QCOMPARE(hostWrapped.first(), QStringLiteral("flatpak-spawn"));
+        QCOMPARE(hostWrapped.at(1), QStringLiteral("--host"));
+    } else {
+        QCOMPARE(hostWrapped, raw);
+    }
 }
 
 QTEST_APPLESS_MAIN(BackendTest)
