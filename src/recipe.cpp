@@ -42,6 +42,15 @@ Recipe Recipe::fromJson(const QJsonObject &obj)
     r.encryption.passphrase = enc["passphrase"].toString();
     r.image = obj["image"].toString();
     r.targetImgref = obj["targetImgref"].toString();
+    r.bootloader = obj["bootloader"].toString();
+    r.composeFsBackend = obj["composeFsBackend"].toBool(false);
+    for (const auto &val : obj["flatpaks"].toArray()) {
+        r.flatpaks.append(val.toString());
+    }
+    for (const auto &val : obj["additionalImageStores"].toArray()) {
+        r.additionalImageStores.append(val.toString());
+    }
+    r.distroID = obj["distroID"].toString("tunaos");
     r.selinuxDisabled = obj["selinuxDisabled"].toBool(true);
     r.hostname = obj["hostname"].toString("tunaos");
     return r;

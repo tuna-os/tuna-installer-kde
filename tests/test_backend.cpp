@@ -16,6 +16,7 @@ private slots:
     void recipeJsonIncludesConfiguredValues();
     void recipeValidation_data();
     void recipeValidation();
+    void recipeJsonRoundTrip();
     void productNameParsing_data();
     void productNameParsing();
     void offlineCommandHelpers();
@@ -116,6 +117,39 @@ void BackendTest::recipeValidation()
 
     QCOMPARE(recipe.validationError(), expectedError);
     QCOMPARE(recipe.isValid(), expectedError.isEmpty());
+}
+
+void BackendTest::recipeJsonRoundTrip()
+{
+    Recipe original;
+    original.disk = QStringLiteral("/dev/sda");
+    original.filesystem = QStringLiteral("ext4");
+    original.image = QStringLiteral("ghcr.io/tuna-os/yellowfin:gnome");
+    original.targetImgref = QStringLiteral("ghcr.io/tuna-os/yellowfin:stable");
+    original.bootloader = QStringLiteral("systemd");
+    original.composeFsBackend = true;
+    original.flatpaks = {QStringLiteral("org.gnome.TextEditor"), QStringLiteral("org.kde.kcalc")};
+    original.additionalImageStores = {QStringLiteral("/run/media/store")};
+    original.distroID = QStringLiteral("tunaos");
+    original.hostname = QStringLiteral("custom-host");
+    original.encryption.type = QStringLiteral("luks-passphrase");
+    original.encryption.passphrase = QStringLiteral("pass");
+
+    const QJsonObject json = original.toJson();
+    const Recipe restored = Recipe::fromJson(json);
+
+    QCOMPARE(restored.disk, original.disk);
+    QCOMPARE(restored.filesystem, original.filesystem);
+    QCOMPARE(restored.image, original.image);
+    QCOMPARE(restored.targetImgref, original.targetImgref);
+    QCOMPARE(restored.bootloader, original.bootloader);
+    QCOMPARE(restored.composeFsBackend, original.composeFsBackend);
+    QCOMPARE(restored.flatpaks, original.flatpaks);
+    QCOMPARE(restored.additionalImageStores, original.additionalImageStores);
+    QCOMPARE(restored.distroID, original.distroID);
+    QCOMPARE(restored.hostname, original.hostname);
+    QCOMPARE(restored.encryption.type, original.encryption.type);
+    QCOMPARE(restored.encryption.passphrase, original.encryption.passphrase);
 }
 
 void BackendTest::productNameParsing_data()
