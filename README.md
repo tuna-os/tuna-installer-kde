@@ -10,7 +10,7 @@
 
 
 **Thin Qt 6 / Kirigami wizard** that drives the
-[fisherman](https://github.com/projectbluefin/fisherman) bootc install backend.
+[fisherman](https://github.com/tuna-os/fisherman) bootc install backend.
 
 The UI is built the way KDE's own initial-setup wizard
 ([KISS](https://github.com/KDE/kiss), landing in Plasma 6.5) is built: each step
@@ -44,6 +44,30 @@ cmake --build build
 
 # Run
 ./build/tuna-installer-kde
+```
+
+## Running Tests
+
+### Backend Unit Tests
+
+Build and execute the CTest / QtTest backend suite (`tuna-installer-backend-tests`):
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON
+cmake --build build
+ctest --test-dir build --output-on-failure
+# Or run directly:
+./build/tuna-installer-backend-tests
+```
+
+### Screenshot Capture Harness
+
+Build the offscreen QML screenshot capture executable (`tuna-installer-capture`):
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_CAPTURE=ON
+cmake --build build
+./build/tuna-installer-capture
 ```
 
 ## Recipe
