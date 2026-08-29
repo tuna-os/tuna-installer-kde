@@ -1,6 +1,6 @@
 # TunaOS KDE Installer — Roadmap
 
-**Last updated**: 2026-08-24 | **Maintainer**: tuna-os (hanthor)
+**Last updated**: 2026-08-29 | **Maintainer**: tuna-os (hanthor)
 
 ---
 
@@ -22,16 +22,17 @@ Plasma user gets a native install from first boot to desktop.
   standalone GitHub Releases (by design, not yet documented as policy).
 - **Parity**: covered by `installer-smoke.yml` + `docs/INSTALLER-FRONTENDS.md`
   checks (readiness stamp, non-blank, advances, per-screen OCR).
-- **Health**: active (pushed 08-24); open issues concentrate on install-recipe
-  secrets handling (#34/#35) and the unpinned privileged backend (#33).
+- **Health**: active (pushed 08-29); install-recipe secrets handling shipped in
+  #35, backend coverage from #29 was extended in #42, and the unpinned
+  privileged backend (#33) remains open.
 
 ### Priorities
 
 | Priority | Item | Tracking | Status |
 |----------|------|----------|--------|
-| P0 | Install-recipe secrets — LUKS passphrase in QTemporaryDir | #34/#35 | 🟡 Open |
+| P0 | Install-recipe secrets — LUKS passphrase in QTemporaryDir | #34/#35 | ✅ Complete |
 | P1 | Unpin privileged install backend embedded in flatpak | #33 | 🟡 Open |
-| P1 | Backend test coverage preserved | #29 | 🟡 Open |
+| P1 | Backend test coverage preserved | #29/#42 | ✅ Complete |
 | P2 | ROADMAP-coverage entry in org ROADMAP tally | #1295 | ⬜ Not started |
 
 ---
@@ -44,7 +45,7 @@ Plasma user gets a native install from first boot to desktop.
 
 | Goal | Owner | Tracking | Status |
 |------|-------|----------|--------|
-| Green recipe-secrets handling (QTemporaryDir + perms) | hanthor | #34/#35 | ⬜ Not started |
+| Green recipe-secrets handling (QTemporaryDir + perms) | hanthor | #34/#35 | ✅ Complete |
 | Unpin the privileged backend | hanthor | #33 | ⬜ Not started |
 
 ### Next Quarter (2026 Q4)
@@ -53,7 +54,7 @@ Plasma user gets a native install from first boot to desktop.
 
 | Goal | Owner | Tracking | Status |
 |------|-------|----------|--------|
-| Backend test coverage | hanthor | #29 | ⬜ Not started |
+| Backend test coverage | hanthor | #29/#42 | ✅ Complete early |
 | Document release/versioning model (image-baked vs tagged) | tuna-os | (org #2020) | ⬜ Not started |
 
 ---
