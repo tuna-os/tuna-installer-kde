@@ -76,8 +76,11 @@ jobs:
 
       - name: build installer + capture harness
         run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_CAPTURE=ON
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_CAPTURE=ON -DBUILD_TESTING=ON
           cmake --build build -j"$(nproc)"
+
+      - name: run unit tests
+        run: ctest --test-dir build --output-on-failure
 
       # Qt's offscreen platform plugin and the software scenegraph: no X
       # server, no compositor, no GPU.
