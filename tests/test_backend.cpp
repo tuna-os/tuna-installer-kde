@@ -38,7 +38,16 @@ void BackendTest::recipeJsonOmitsOptionalValues()
 {
     const QJsonObject json = Recipe{}.toJson();
 
-    QVERIFY(!json.contains(QStringLiteral("image")));
+    // "image" is not one of the optional keys for a normal install: fisherman
+    // is always handed it, and validationError() rejects an empty image before
+    // a recipe can be sent. Only live-ISO mode may omit it — see the liveMode
+    // branch in Recipe::toJson() and INSTALLER-FRONTENDS.md 4.
+    QVERIFY(json.contains(QStringLiteral("image")));
+
+    Recipe live;
+    live.liveMode = true;
+    QVERIFY(!live.toJson().contains(QStringLiteral("image")));
+
     QVERIFY(!json.contains(QStringLiteral("targetImgref")));
     QVERIFY(!json.contains(QStringLiteral("bootloader")));
     QVERIFY(!json.contains(QStringLiteral("composeFsBackend")));
