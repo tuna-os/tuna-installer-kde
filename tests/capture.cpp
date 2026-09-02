@@ -63,19 +63,73 @@ namespace {
 //
 // Ink spans a factor of fifty, so any ink floor loose enough to admit the done
 // step is far too loose to catch a blank form step. What IS uniform is how far
-// the drawn content is SPREAD: every real screen marks at least 15% of the
-// rect's rows and 40% of its columns, and a step whose module drew nothing
-// marks 0.0% of both. So the spread is the load-bearing check and ink is a
+// the drawn content is SPREAD: a step whose module drew nothing marks 0.0% of
+// both rows and columns. So the spread is the load-bearing check and ink is a
 // weak second opinion.
 //
 // There is deliberately no max-flat threshold any more. The done step is 99.3%
 // one colour by design, so the only passing value would be ~0.995, which a
 // font change could cross on a screen that renders perfectly well: a threshold
 // with no margin is a flake, not a check.
-constexpr int MIN_COLOURS = 60;         // vs 161 measured on the sparsest screen
-constexpr double MIN_INK_ROWS = 0.08;   // vs 0.155
-constexpr double MIN_INK_COLS = 0.20;   // vs 0.407
-constexpr double MIN_INK = 0.0025;      // vs 0.0060
+//
+// ── Why the row floor is per-class, not global (#57) ───────────────────────
+// A single row floor across all six screens measured the CONTAINER'S FONT
+// METRICS as much as it measured rendering, and it went red on a UI that draws
+// perfectly. Re-measured after the workflow moved to fedora:45 (run
+// 33658389834), against the same six screens:
+//
+//   step           colours   ink%   rows%   cols%     was (run 31135359770)
+//   01-welcome         198   0.90     9.0    45.2       233  1.32  23.2  54.2
+//   02-disk            280  21.97    42.7    53.9       322 22.34  41.8  53.9
+//   03-encryption      217  26.86    53.8    53.9       344 26.86  54.6  53.9
+//   04-confirm         207  30.12    56.8    53.9       305 30.44  57.7  53.9
+//   05-progress        244  15.34   100.0   100.0       326 10.98 100.0 100.0
+//   06-done            153   0.47     7.0    38.0       161  0.60  15.5  40.7
+//
+// The three form steps did not move (within a point). Both hero pages roughly
+// HALVED: welcome 23.2 -> 9.0, done 15.5 -> 7.0, with ink and colours down too
+// and columns nearly unchanged. That is the signature of a smaller
+// Kirigami.Units.gridUnit, which is derived from font metrics: the hero pages
+// size their icon (iconSizes.enormous), their spacings (largeSpacing,
+// gridUnit) and their wrapped prose off it, so the whole column scales with
+// the font. The card steps barely move because their row coverage comes from
+// the FormCard background painting the rect, not from text.
+//
+// So the two classes are not measuring the same thing and cannot share a floor:
+//
+//   hero (01-welcome, 06-done) — icon + heading + prose centred on a flat page.
+//       Vertical extent is a function of font metrics. Floor set against the
+//       7.0% now measured on the sparsest, which still leaves >2x margin over
+//       a module that drew nothing (0.0%).
+//   card (everything else) — a card or log paints across the rect. The sparsest
+//       measures 42.7%, so the old global 8% floor was ~5x looser than this
+//       class warrants and would have admitted a badly broken form step.
+//
+// Making the floor screen-specific therefore TIGHTENS the check where it can
+// bite and only loosens it where it was measuring the font. Backing both up,
+// every step must now also carry visible text of its own (see MIN_STEP_TEXT):
+// a hero page that drew nothing has no text regardless of font metrics, which
+// is the semantic assertion the pixel ratios only approximate.
+constexpr int MIN_COLOURS = 60;              // vs 153 measured on the sparsest screen
+constexpr double MIN_INK = 0.0025;           // vs 0.0047
+
+constexpr double MIN_INK_ROWS_HERO = 0.03;   // vs 0.070 measured; 0.0 when nothing drew
+constexpr double MIN_INK_COLS_HERO = 0.15;   // vs 0.380
+constexpr double MIN_INK_ROWS_CARD = 0.20;   // vs 0.427
+constexpr double MIN_INK_COLS_CARD = 0.35;   // vs 0.539
+
+// A step that rendered has a heading at minimum. Length rather than mere
+// non-emptiness so a stray single glyph cannot satisfy it.
+constexpr int MIN_STEP_TEXT = 10;
+
+// The two hero pages, by capture name. Kept as an explicit list rather than
+// inferred from the measurements, because a screen's class is a fact about how
+// its module paints — deriving it from the numbers would let a genuinely blank
+// card step reclassify itself as a hero page and pass.
+bool isHeroStep(const QString &name)
+{
+    return name == u"01-welcome"_s || name == u"06-done"_s;
+}
 
 void settle(int ms)
 {
@@ -102,6 +156,9 @@ struct Finding {
     // same verdict — nothing about the audit is relaxed.
     double stddev = 0.0;
     bool rendered = false;
+    // Which spread floors apply. Set from the capture name, not from the
+    // pixels; see isHeroStep().
+    bool hero = false;
     QString png;
     QString text;
 };
@@ -518,6 +575,7 @@ int main(int argc, char *argv[])
         }
         Finding f = audit(image, content, step.second);
         f.png = path;
+        f.hero = isHeroStep(step.second);
         // The step the wizard is CURRENTLY showing only. Wizard.goToStep sets
         // `item.visible = (i === index)` on every module, and itemText() skips
         // invisible items, so this cannot collect the other five steps' text
@@ -529,8 +587,13 @@ int main(int argc, char *argv[])
 
     QStringList failures;
     for (auto &f : findings) {
-        out << QStringLiteral("  %1  colours %2  ink %3%  rows %4%  cols %5%\n")
+        // The class is printed so the numbers can be read against the floors
+        // that were actually applied to them, rather than against each other.
+        const double minRows = f.hero ? MIN_INK_ROWS_HERO : MIN_INK_ROWS_CARD;
+        const double minCols = f.hero ? MIN_INK_COLS_HERO : MIN_INK_COLS_CARD;
+        out << QStringLiteral("  %1  %2  colours %3  ink %4%  rows %5%  cols %6%\n")
                    .arg(f.name, -14)
+                   .arg(f.hero ? u"hero"_s : u"card"_s)
                    .arg(f.colours, 6)
                    .arg(f.ink * 100, 6, 'f', 2)
                    .arg(f.inkRows * 100, 5, 'f', 1)
@@ -538,12 +601,20 @@ int main(int argc, char *argv[])
         QStringList stepFailures;
         if (f.colours < MIN_COLOURS)
             stepFailures << QStringLiteral("%1: %2 distinct colours — did not render").arg(f.name).arg(f.colours);
-        if (f.inkRows < MIN_INK_ROWS)
-            stepFailures << QStringLiteral("%1: content on only %2% of rows (blank screen)").arg(f.name).arg(f.inkRows * 100, 0, 'f', 1);
-        if (f.inkCols < MIN_INK_COLS)
-            stepFailures << QStringLiteral("%1: content on only %2% of columns (blank screen)").arg(f.name).arg(f.inkCols * 100, 0, 'f', 1);
+        if (f.inkRows < minRows)
+            stepFailures << QStringLiteral("%1: content on only %2% of rows, below the %3% floor for a %4 step (blank screen)")
+                                .arg(f.name).arg(f.inkRows * 100, 0, 'f', 1).arg(minRows * 100, 0, 'f', 1).arg(f.hero ? u"hero"_s : u"card"_s);
+        if (f.inkCols < minCols)
+            stepFailures << QStringLiteral("%1: content on only %2% of columns, below the %3% floor for a %4 step (blank screen)")
+                                .arg(f.name).arg(f.inkCols * 100, 0, 'f', 1).arg(minCols * 100, 0, 'f', 1).arg(f.hero ? u"hero"_s : u"card"_s);
         if (f.ink < MIN_INK)
             stepFailures << QStringLiteral("%1: %2% ink — nothing drawn").arg(f.name).arg(f.ink * 100, 0, 'f', 2);
+        // Semantic backstop. Independent of every pixel ratio above and of the
+        // font metrics they turned out to track: a step that rendered nothing
+        // has no visible text, whatever the container's fonts do.
+        if (f.text.trimmed().size() < MIN_STEP_TEXT)
+            stepFailures << QStringLiteral("%1: %2 characters of visible text — the step rendered no content")
+                                .arg(f.name).arg(int(f.text.trimmed().size()));
         f.rendered = stepFailures.isEmpty();
         failures << stepFailures;
     }
