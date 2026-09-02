@@ -13,7 +13,7 @@ QJsonObject Recipe::toJson() const
     if (!encryption.passphrase.isEmpty())
         enc["passphrase"] = encryption.passphrase;
     obj["encryption"] = enc;
-    if (!liveMode || !image.isEmpty())
+    if (!image.isEmpty())
         obj["image"] = image;
     if (!targetImgref.isEmpty())
         obj["targetImgref"] = targetImgref;
