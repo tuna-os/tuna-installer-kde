@@ -7,6 +7,7 @@
 // live-ISO/offline handling are unchanged — they just talk to QML properties
 // now instead of QLabels.
 
+#include <QFile>
 #include <QObject>
 #include <QProcess>
 #include <QString>
@@ -41,6 +42,13 @@ class InstallerController : public QObject
     Q_PROPERTY(QString productName READ productName CONSTANT)
 
     Q_PROPERTY(QString log READ log NOTIFY logChanged)
+
+    // Where the same log is being written on disk, empty when the file could
+    // not be opened. The done step shows it: the in-window log dies with the
+    // window, and a failed install is exactly when someone needs to reboot,
+    // ask for help, or attach the output to a bug report.
+    Q_PROPERTY(QString logPath READ logPath NOTIFY logPathChanged)
+
     Q_PROPERTY(bool installing READ installing NOTIFY installingChanged)
     Q_PROPERTY(bool installFinished READ installFinishedFlag NOTIFY installCompleted)
     Q_PROPERTY(int exitCode READ exitCode NOTIFY installCompleted)
@@ -67,6 +75,7 @@ public:
     bool hasTpm() const { return m_hasTpm; }
     QString productName() const { return m_productName; }
     QString log() const { return m_log; }
+    QString logPath() const { return m_logPath; }
     bool installing() const { return m_process != nullptr; }
     bool installFinishedFlag() const { return m_finished; }
     int exitCode() const { return m_exitCode; }
@@ -88,10 +97,13 @@ public:
 Q_SIGNALS:
     void recipeChanged();
     void logChanged();
+    void logPathChanged();
     void installingChanged();
     void installCompleted(int exitCode);
 
 private:
+    void openLogFile();
+    void closeLogFile();
     void appendLine(const QString &line);
     void drainBuffer(const QString &prefix);
     void fail(const QString &message);
@@ -100,6 +112,8 @@ private:
     QTemporaryDir m_recipeDir;
     QString m_recipePath;
     QString m_log;
+    QFile *m_logFile = nullptr;
+    QString m_logPath;
     QString m_buffer;
     QProcess *m_process = nullptr;
     bool m_finished = false;
