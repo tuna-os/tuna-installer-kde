@@ -117,9 +117,13 @@ if(BUILD_TESTING)
         src/recipe.cpp
         src/productname.cpp
         src/offline.cpp
+        src/readiness.cpp
     )
     target_include_directories(tuna-installer-backend-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-    target_link_libraries(tuna-installer-backend-tests PRIVATE Qt6::Core Qt6::Test)
+    # Qt6::Quick is needed to compile readiness.cpp: armStamp() takes a
+    # QQuickWindow, so the type must be complete even though the tests below
+    # only exercise writeStamp(), which has no Quick dependency of its own.
+    target_link_libraries(tuna-installer-backend-tests PRIVATE Qt6::Core Qt6::Quick Qt6::Test)
 
     add_test(NAME tuna-installer-backend-tests COMMAND tuna-installer-backend-tests)
 endif()
