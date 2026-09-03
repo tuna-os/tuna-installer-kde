@@ -1,9 +1,13 @@
 #include "offline.h"
 #include "productname.h"
+#include "readiness.h"
 #include "recipe.h"
 
+#include <QDir>
+#include <QFile>
 #include <QJsonArray>
 #include <QProcessEnvironment>
+#include <QTemporaryDir>
 #include <QTest>
 
 class BackendTest : public QObject
@@ -20,6 +24,9 @@ private slots:
     void productNameParsing_data();
     void productNameParsing();
     void offlineCommandHelpers();
+    void readinessWriteStampFailsWithEmptyRuntimeDir();
+    void readinessWriteStampWritesExpectedFields();
+    void readinessWriteStampBlankPageBecomesUnknown();
 };
 
 void BackendTest::recipeDefaults()
@@ -197,6 +204,49 @@ void BackendTest::offlineCommandHelpers()
     } else {
         QCOMPARE(hostWrapped, raw);
     }
+}
+
+// readiness::writeStamp() was split out from armStamp() specifically so the
+// stamp format -- which tunaOS's installer-smoke.yml parses over SSH -- is
+// reachable from a test without standing up a window (see readiness.h). It
+// was never linked into this test target, so nothing checked that promise.
+// armStamp() itself still needs a real QQuickWindow and stays untested here.
+
+void BackendTest::readinessWriteStampFailsWithEmptyRuntimeDir()
+{
+    QVERIFY(!readiness::writeStamp(QString(), QStringLiteral("welcome"), 1000));
+}
+
+void BackendTest::readinessWriteStampWritesExpectedFields()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    QVERIFY(readiness::writeStamp(dir.path(), QStringLiteral("disk"), 1234567));
+
+    QFile stamp(QDir(dir.path()).filePath(QStringLiteral("tuna-installer-ready")));
+    QVERIFY(stamp.open(QIODevice::ReadOnly | QIODevice::Text));
+    const QString body = QString::fromUtf8(stamp.readAll());
+
+    QVERIFY(body.contains(QStringLiteral("app_id=org.tunaos.InstallerKde")));
+    QVERIFY(body.contains(QStringLiteral("window=ApplicationWindow")));
+    QVERIFY(body.contains(QStringLiteral("signal=frame-swapped")));
+    QVERIFY(body.contains(QStringLiteral("mapped_at=1234.567")));
+    QVERIFY(body.contains(QStringLiteral("page=disk")));
+}
+
+void BackendTest::readinessWriteStampBlankPageBecomesUnknown()
+{
+    // A bare "page=" would parse downstream as a real page named "" --
+    // readiness.cpp's own comment on this fallback is what this test pins.
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    QVERIFY(readiness::writeStamp(dir.path(), QString(), 0));
+
+    QFile stamp(QDir(dir.path()).filePath(QStringLiteral("tuna-installer-ready")));
+    QVERIFY(stamp.open(QIODevice::ReadOnly | QIODevice::Text));
+    QVERIFY(QString::fromUtf8(stamp.readAll()).contains(QStringLiteral("page=unknown")));
 }
 
 QTEST_APPLESS_MAIN(BackendTest)
