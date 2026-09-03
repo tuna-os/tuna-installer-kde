@@ -55,6 +55,21 @@ TunaComponents.SetupModule {
                 Layout.fillWidth: true
             }
 
+            // The log shown on the previous step dies with this window; this
+            // is where the copy on disk is. Hidden when the file could not be
+            // opened, rather than pointing at a path that does not exist.
+            Label {
+                text: "Log saved to " + InstallerController.logPath
+                visible: InstallerController.logPath.length > 0
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                font: Kirigami.Theme.smallFont
+                opacity: 0.8
+
+                Layout.fillWidth: true
+            }
+
         }
     }
 }

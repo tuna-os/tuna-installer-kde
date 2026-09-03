@@ -35,6 +35,8 @@ target_link_libraries(tunainstallercomponents PUBLIC Qt6::Quick Qt6::Qml)
 
 # --- org.tunaos.installer -----------------------------------------------------
 set(BACKEND_SOURCES
+    src/log.cpp
+    src/log.h
     src/recipe.cpp
     src/recipe.h
     src/offline.cpp
@@ -111,6 +113,7 @@ if(BUILD_TESTING)
 
     qt_add_executable(tuna-installer-backend-tests
         tests/test_backend.cpp
+        src/log.cpp
         src/recipe.cpp
         src/productname.cpp
         src/offline.cpp

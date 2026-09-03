@@ -1,4 +1,5 @@
 #include "offline.h"
+#include "log.h"
 
 #include <QDir>
 #include <QFile>
@@ -35,13 +36,38 @@ QStringList hostCommand(const QStringList &argv)
     return wrapped;
 }
 
+// Every caller treats an empty return as "nothing there": no live image, no
+// offline stores. A helper that was missing, denied by the sandbox, or hung
+// produced exactly the same empty string as a helper that ran fine and had
+// nothing to report — so an install that quietly lost live-ISO mode looked
+// identical to one that never had it. The result is still empty (callers all
+// have a sane no-data path); it is now said out loud.
 static QString runHost(const QStringList &argv, int timeoutMs = 10000)
 {
     const QStringList cmd = hostCommand(argv);
     QProcess p;
     p.start(cmd.first(), cmd.mid(1));
-    if (!p.waitForFinished(timeoutMs) || p.exitCode() != 0)
+
+    if (!p.waitForFinished(timeoutMs)) {
+        qCWarning(logInstaller) << "helper did not finish within" << timeoutMs
+                                << "ms, treating its output as empty:" << cmd;
+        // waitForFinished timing out leaves the child running; do not hand a
+        // stray process to the destructor.
+        p.kill();
+        p.waitForFinished(1000);
         return {};
+    }
+
+    if (p.exitStatus() != QProcess::NormalExit || p.exitCode() != 0) {
+        qCWarning(logInstaller) << "helper failed, treating its output as empty:" << cmd
+                                << (p.exitStatus() == QProcess::CrashExit
+                                        ? "crashed, exit"
+                                        : "exit")
+                                << p.exitCode()
+                                << "stderr" << QString::fromUtf8(p.readAllStandardError()).trimmed();
+        return {};
+    }
+
     return QString::fromUtf8(p.readAllStandardOutput());
 }
 

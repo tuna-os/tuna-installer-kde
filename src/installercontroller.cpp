@@ -1,10 +1,14 @@
 #include "installercontroller.h"
+#include "log.h"
 #include "offline.h"
 #include "productname.h"
 
+#include <QDateTime>
+#include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonDocument>
+#include <QStandardPaths>
 #include <QTemporaryDir>
 
 InstallerController::InstallerController(QObject *parent)
@@ -85,11 +89,73 @@ QString InstallerController::encryptionLabel(const QString &type) const
     return QStringLiteral("None");
 }
 
+// The install log existed only in m_log, i.e. only in the TextArea on the
+// progress page. Everything fisherman said about a failure was gone the moment
+// the window closed — and after a failed install the next step is usually to
+// close it and reboot. Mirror it to a file as it arrives, so it outlives both
+// the window and the session that produced it.
+void InstallerController::openLogFile()
+{
+    // A retry must not keep advertising the previous run's file.
+    closeLogFile();
+    if (!m_logPath.isEmpty()) {
+        m_logPath.clear();
+        Q_EMIT logPathChanged();
+    }
+
+    const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    if (dir.isEmpty() || !QDir().mkpath(dir)) {
+        qCWarning(logInstaller) << "no writable location for the install log:" << dir;
+        return;
+    }
+
+    const QString path =
+        QDir(dir).filePath(QStringLiteral("install-%1.log")
+                               .arg(QDateTime::currentDateTimeUtc()
+                                        .toString(QStringLiteral("yyyyMMdd-hhmmss"))));
+
+    auto *file = new QFile(path, this);
+    if (!file->open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+        qCWarning(logInstaller) << "cannot open the install log" << path << ":"
+                                << file->errorString();
+        delete file;
+        return;
+    }
+    // fisherman's output is not expected to contain the passphrase, but this
+    // file records a privileged install verbatim: keep it owner-only rather
+    // than trusting the umask.
+    file->setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+
+    m_logFile = file;
+    m_logPath = path;
+    qCInfo(logInstaller) << "writing the install log to" << path;
+    Q_EMIT logPathChanged();
+}
+
+void InstallerController::closeLogFile()
+{
+    if (!m_logFile)
+        return;
+    m_logFile->close();
+    m_logFile->deleteLater();
+    m_logFile = nullptr;
+}
+
 void InstallerController::appendLine(const QString &line)
 {
     m_log += line;
     if (!line.endsWith(QLatin1Char('\n')))
         m_log += QLatin1Char('\n');
+
+    if (m_logFile) {
+        m_logFile->write(line.toUtf8());
+        if (!line.endsWith(QLatin1Char('\n')))
+            m_logFile->write("\n");
+        // Flushed per line: the interesting case is the one where the machine
+        // is about to be rebooted or powered off by hand.
+        m_logFile->flush();
+    }
+
     Q_EMIT logChanged();
 }
 
@@ -105,7 +171,9 @@ void InstallerController::drainBuffer(const QString &prefix)
 
 void InstallerController::fail(const QString &message)
 {
+    qCWarning(logInstaller) << "install failed:" << message;
     appendLine(QStringLiteral("\nERROR: %1").arg(message));
+    closeLogFile();
     m_finished = true;
     m_exitCode = 1;
     Q_EMIT installCompleted(1);
@@ -137,6 +205,9 @@ void InstallerController::startInstall()
     m_buffer.clear();
     m_finished = false;
     Q_EMIT logChanged();
+
+    // Before the recipe is written, so the failures below are logged too.
+    openLogFile();
     appendLine(QStringLiteral("Starting installation..."));
 
     // The recipe can hold a LUKS passphrase — write it 0600 in a fresh
@@ -183,6 +254,27 @@ void InstallerController::startInstall()
     m_process->setProgram(cmd.takeFirst());
     m_process->setArguments(cmd);
 
+    // Which escalation path was taken (pkexec via flatpak-spawn, or sudo) is
+    // the first thing anyone reading a failed install needs to know.
+    appendLine(QStringLiteral("Running: %1 %2")
+                   .arg(m_process->program(), m_process->arguments().join(QLatin1Char(' '))));
+
+    // Without this, a fisherman that never starts — no pkexec in the sandbox,
+    // the polkit agent missing, the binary not installed — emitted no
+    // finished() either. The wizard sat on the progress page with a spinner
+    // and "Starting installation..." forever, saying nothing.
+    connect(m_process, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
+        // Every other error is followed by finished(), which reports it below.
+        if (error != QProcess::FailedToStart)
+            return;
+        const QString message = QStringLiteral("Could not start %1: %2")
+                                    .arg(m_process->program(), m_process->errorString());
+        m_process->deleteLater();
+        m_process = nullptr;
+        Q_EMIT installingChanged();
+        fail(message);
+    });
+
     connect(m_process, &QProcess::readyReadStandardOutput, this, [this]() {
         m_buffer += QString::fromUtf8(m_process->readAllStandardOutput());
         drainBuffer({});
@@ -202,14 +294,20 @@ void InstallerController::startInstall()
             QFile::remove(m_recipePath);
 
         if (status == QProcess::CrashExit) {
+            qCWarning(logInstaller) << "fisherman crashed";
             appendLine(QStringLiteral("\nERROR: fisherman crashed"));
             m_exitCode = 1;
         } else {
             m_exitCode = exitCode;
+            if (exitCode != 0)
+                qCWarning(logInstaller) << "fisherman exited with" << exitCode;
             appendLine(exitCode == 0
                            ? QStringLiteral("\n✓ Installation complete!")
                            : QStringLiteral("\n✗ Installation failed (exit code %1)").arg(exitCode));
         }
+        if (!m_logPath.isEmpty())
+            appendLine(QStringLiteral("Log: %1").arg(m_logPath));
+        closeLogFile();
         m_finished = true;
         m_process->deleteLater();
         m_process = nullptr;
