@@ -1,3 +1,13 @@
+> ## This repository has moved
+>
+> The kde installer now lives in the **bootc-installer monorepo**:
+> [`tuna-os/bootc-installer` → `frontends/kde/`](https://github.com/tuna-os/bootc-installer/tree/dev/frontends/kde).
+> The import on 2026-09-17 kept the full history.
+> [docs/MIGRATION.md](https://github.com/tuna-os/bootc-installer/blob/dev/docs/MIGRATION.md)
+> lists the open pull requests and issues of this repository. Re-home them
+> there. After that, the maintainers archive this repository. Do not open
+> new work here.
+
 # TunaOS KDE Installer — Kirigami/Plasma 6 frontend for fisherman
 
 <p align="center">
