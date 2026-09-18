@@ -31,7 +31,7 @@ on:
 
 jobs:
   capture:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     container: quay.io/fedora/fedora:45
     permissions:
       contents: write
