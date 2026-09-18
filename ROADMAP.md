@@ -1,6 +1,6 @@
 # TunaOS KDE Installer — Roadmap
 
-**Last updated**: 2026-08-29 | **Maintainer**: tuna-os (hanthor)
+**Last updated**: 2026-09-17 | **Maintainer**: tuna-os (hanthor)
 
 ---
 
@@ -15,6 +15,8 @@ Plasma user gets a native install from first boot to desktop.
 
 ## Current Status
 
+> ⚠️ **NOTICE**: The KDE installer source has been migrated into the monorepo at [`tuna-os/bootc-installer` → `frontends/kde/`](https://github.com/tuna-os/bootc-installer/tree/dev/frontends/kde). This standalone repository is undergoing sunset and archive reconciliation.
+
 - **App**: Qt 6 / Kirigami (Plasma 6) frontend for fisherman — modular
   steps under `modules/<name>/contents/ui/main.qml`; CI-rendered walkthrough
   in docs/gui-walkthrough.md.
@@ -22,18 +24,16 @@ Plasma user gets a native install from first boot to desktop.
   standalone GitHub Releases (by design, not yet documented as policy).
 - **Parity**: covered by `installer-smoke.yml` + `docs/INSTALLER-FRONTENDS.md`
   checks (readiness stamp, non-blank, advances, per-screen OCR).
-- **Health**: active (pushed 08-29); install-recipe secrets handling shipped in
-  #35, backend coverage from #29 was extended in #42, and the unpinned
-  privileged backend (#33) remains open.
+- **Health**: Monorepo migration complete (#88); standalone repo read-only archive pending.
 
 ### Priorities
 
 | Priority | Item | Tracking | Status |
 |----------|------|----------|--------|
-| P0 | Install-recipe secrets — LUKS passphrase in QTemporaryDir | #34/#35 | ✅ Complete |
-| P1 | Unpin privileged install backend embedded in flatpak | #33 | 🟡 Open |
-| P1 | Backend test coverage preserved | #29/#42 | ✅ Complete |
-| P2 | ROADMAP-coverage entry in org ROADMAP tally | #1295 | ⬜ Not started |
+| P0 | Monorepo migration to bootc-installer | #88 | ✅ Complete |
+| P1 | Issue and PR re-homing to bootc-installer monorepo | #88 | 🟡 In Progress |
+| P1 | Standalone repo read-only archive & deprecation notice | #88 | ⬜ Planned |
+| P2 | Org-wide installer roadmap tally reconciliation | #1295 | ⬜ Planned |
 
 ---
 
@@ -41,22 +41,23 @@ Plasma user gets a native install from first boot to desktop.
 
 ### Current Quarter (2026 Q3)
 
-**Theme**: harden the install path
+**Theme**: monorepo consolidation & installer hardening
 
 | Goal | Owner | Tracking | Status |
 |------|-------|----------|--------|
 | Green recipe-secrets handling (QTemporaryDir + perms) | hanthor | #34/#35 | ✅ Complete |
-| Unpin the privileged backend | hanthor | #33 | ⬜ Not started |
+| Monorepo migration to `bootc-installer` | tuna-os | #88 | ✅ Complete |
 
 ### Next Quarter (2026 Q4)
 
-**Theme**: parity and cadence
+**Theme**: archive sunset & monorepo issue re-homing
 
 | Goal | Owner | Tracking | Status |
 |------|-------|----------|--------|
-| Backend test coverage | hanthor | #29/#42 | ✅ Complete early |
-| Document release/versioning model (image-baked vs tagged) | tuna-os | (org #2020) | ⬜ Not started |
+| Complete issue/PR re-homing to `bootc-installer` | hanthor | #88 | ⬜ Planned |
+| Archive standalone `tuna-installer-kde` repository | tuna-os | #88 | ⬜ Planned |
 
 ---
 
-*ROADMAP added by strategist agent (ACMM L6 — full mode). Signed-off-by: hanthor-hive-agent[bot] <290068839+hanthor-hive-agent[bot]@users.noreply.github.com>*
+*ROADMAP updated by strategist agent (ACMM L6 — full mode).*
+
